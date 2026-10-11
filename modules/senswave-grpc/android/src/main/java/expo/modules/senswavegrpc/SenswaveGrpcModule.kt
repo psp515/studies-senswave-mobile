@@ -23,6 +23,13 @@ class SenswaveGrpcModule : Module() {
     private val descriptors = ConcurrentHashMap<String, MethodDescriptor<ByteArray, ByteArray>>()
     private val calls = ConcurrentHashMap<String, ClientCall<ByteArray, ByteArray>>()
 
+    // Ids cancelled before their call was registered. Unary runs on a background queue while cancel runs on
+    // the JS thread, so cancel can win the race. Both sides take callLock: cancel either finds the registered
+    // call or leaves a tombstone that startCall consumes, so a cancel is never lost and never hits an
+    // unstarted call.
+    private val cancelledIds = HashSet<String>()
+    private val callLock = Any()
+
     override fun definition() = ModuleDefinition {
         Name("SenswaveGrpc")
 
@@ -79,12 +86,16 @@ class SenswaveGrpcModule : Module() {
         }
 
         Function("cancel") { callId: String ->
-            calls.remove(callId)?.cancel("Cancelled by client", null)
+            val call = synchronized(callLock) {
+                calls.remove(callId).also { if (it == null) cancelledIds.add(callId) }
+            }
+            call?.cancel("Cancelled by client", null)
         }
 
         OnDestroy {
             calls.values.forEach { it.cancel("Module destroyed", null) }
             calls.clear()
+            synchronized(callLock) { cancelledIds.clear() }
             channels.values.forEach { it.shutdownNow() }
             channels.clear()
         }
@@ -125,8 +136,19 @@ class SenswaveGrpcModule : Module() {
             return
         }
 
-        calls[callId] = call
-        call.start(listener, requestMetadata)
+        val cancelled = synchronized(callLock) {
+            if (cancelledIds.remove(callId)) {
+                true
+            } else {
+                call.start(listener, requestMetadata)
+                calls[callId] = call
+                false
+            }
+        }
+        if (cancelled) {
+            listener.onClose(Status.CANCELLED.withDescription("Cancelled by client"), Metadata())
+            return
+        }
         call.request(if (type == MethodDescriptor.MethodType.UNARY) 2 else 1)
         call.sendMessage(request)
         call.halfClose()
