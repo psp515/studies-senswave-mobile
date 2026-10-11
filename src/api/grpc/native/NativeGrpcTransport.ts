@@ -59,6 +59,13 @@ const statusName = (code: number): string => GrpcStatusCode[code] ?? "UNKNOWN";
 
 const methodPath = (method: MethodInfo) => `${method.service.typeName}/${method.name}`;
 
+const localError = (method: MethodInfo, message: string, code: string): RpcError => {
+    const error = new RpcError(message, code);
+    error.serviceName = method.service.typeName;
+    error.methodName = method.name;
+    return error;
+};
+
 const rpcError = (method: MethodInfo, result: NativeCallResult): RpcError => {
     const error = new RpcError(
         result.message,
@@ -101,6 +108,19 @@ export class NativeGrpcTransport implements RpcTransport {
             trailers.rejectPending(error);
         };
 
+        if (options.abort?.aborted) {
+            fail(localError(method, "Call was cancelled before it started.", "CANCELLED"));
+            return new UnaryCall<I, O>(
+                method,
+                requestMeta,
+                input,
+                headers.promise,
+                response.promise,
+                status.promise,
+                trailers.promise,
+            );
+        }
+
         options.abort?.addEventListener("abort", () => this.options.bridge.cancel(callId));
 
         this.options.bridge
@@ -121,12 +141,24 @@ export class NativeGrpcTransport implements RpcTransport {
                         return;
                     }
 
-                    response.resolvePending(
-                        method.O.fromBinary(
+                    let decoded: O;
+                    try {
+                        decoded = method.O.fromBinary(
                             base64decode(result.responseBase64),
                             options.binaryOptions,
-                        ),
-                    );
+                        );
+                    } catch (reason) {
+                        fail(
+                            localError(
+                                method,
+                                `Failed to decode response: ${String(reason)}`,
+                                "INTERNAL",
+                            ),
+                        );
+                        return;
+                    }
+
+                    response.resolvePending(decoded);
                     status.resolvePending({ code: "OK", detail: result.message });
                     trailers.resolvePending(fromNativeMetadata(result.trailers));
                 },
@@ -162,6 +194,23 @@ export class NativeGrpcTransport implements RpcTransport {
         const status = new Deferred<RpcStatus>();
         const trailers = new Deferred<RpcMetadata>();
 
+        if (options.abort?.aborted) {
+            const error = localError(method, "Call was cancelled before it started.", "CANCELLED");
+            headers.rejectPending(error);
+            responses.notifyError(error);
+            status.rejectPending(error);
+            trailers.rejectPending(error);
+            return new ServerStreamingCall<I, O>(
+                method,
+                requestMeta,
+                input,
+                headers.promise,
+                responses,
+                status.promise,
+                trailers.promise,
+            );
+        }
+
         const subscriptions: NativeSubscription[] = [
             bridge.addListener("onStreamHeaders", (event) => {
                 if (event.callId === callId)
@@ -169,9 +218,27 @@ export class NativeGrpcTransport implements RpcTransport {
             }),
             bridge.addListener("onStreamMessage", (event) => {
                 if (event.callId !== callId) return;
-                responses.notifyMessage(
-                    method.O.fromBinary(base64decode(event.base64), options.binaryOptions),
-                );
+                let message: O;
+                try {
+                    message = method.O.fromBinary(
+                        base64decode(event.base64),
+                        options.binaryOptions,
+                    );
+                } catch (reason) {
+                    subscriptions.forEach((s) => s.remove());
+                    bridge.cancel(callId);
+                    const error = localError(
+                        method,
+                        `Failed to decode stream message: ${String(reason)}`,
+                        "INTERNAL",
+                    );
+                    headers.rejectPending(error);
+                    responses.notifyError(error);
+                    status.rejectPending(error);
+                    trailers.rejectPending(error);
+                    return;
+                }
+                responses.notifyMessage(message);
             }),
             bridge.addListener("onStreamClose", (event) => {
                 if (event.callId !== callId) return;

@@ -162,6 +162,41 @@ describe("NativeGrpcTransport unary", () => {
 
         expect(bridge.cancelled).toEqual([bridge.unaryCalls[0].callId]);
     });
+
+    it("rejects with INTERNAL when the response cannot be decoded", async () => {
+        const { bridge, transport } = setup();
+        bridge.unaryResult = Promise.resolve({
+            status: 0,
+            message: "",
+            responseBase64: base64encode(new Uint8Array([0xff, 0xff, 0xff])),
+            headers: {},
+            trailers: {},
+        });
+
+        const error = await new LegalServiceClient(transport).getPrivacyPolicy({}).then(
+            () => null,
+            (e) => e,
+        );
+
+        expect(error.code).toBe("INTERNAL");
+        expect(error.methodName).toBe("GetPrivacyPolicy");
+    });
+
+    it("does not call the bridge when the signal is already aborted", async () => {
+        const { bridge, transport } = setup();
+        const abort = new AbortController();
+        abort.abort();
+
+        const error = await new LegalServiceClient(transport)
+            .getPrivacyPolicy({}, { abort: abort.signal })
+            .then(
+                () => null,
+                (e) => e,
+            );
+
+        expect(error.code).toBe("CANCELLED");
+        expect(bridge.unaryCalls).toHaveLength(0);
+    });
 });
 
 describe("NativeGrpcTransport server streaming", () => {
@@ -231,5 +266,49 @@ describe("NativeGrpcTransport server streaming", () => {
         abort.abort();
 
         expect(bridge.cancelled).toEqual([bridge.streams[0].callId]);
+    });
+
+    it("errors the stream and cancels natively when a message cannot be decoded", async () => {
+        const { bridge, transport } = setup();
+        const call = new LiveUpdatesServiceClient(transport).subscribe({ homeReferenceId: "h1" });
+        const { callId } = bridge.streams[0];
+
+        bridge.emit("onStreamMessage", {
+            callId,
+            base64: base64encode(new Uint8Array([0xff, 0xff, 0xff])),
+        });
+        bridge.emit("onStreamClose", { callId, status: 1, message: "", headers: {}, trailers: {} });
+
+        const error = await (async () => {
+            for await (const _ of call.responses) {
+                // drain
+            }
+        })().then(
+            () => null,
+            (e) => e,
+        );
+
+        expect(error.code).toBe("INTERNAL");
+        expect(bridge.cancelled).toContain(callId);
+        expect(bridge.listenerCount()).toBe(0);
+    });
+
+    it("does not start the native stream when the signal is already aborted", async () => {
+        const { bridge, transport } = setup();
+        const abort = new AbortController();
+        abort.abort();
+
+        const call = new LiveUpdatesServiceClient(transport).subscribe(
+            { homeReferenceId: "h1" },
+            { abort: abort.signal },
+        );
+        const error = await call.status.then(
+            () => null,
+            (e) => e,
+        );
+
+        expect(error.code).toBe("CANCELLED");
+        expect(bridge.streams).toHaveLength(0);
+        expect(bridge.listenerCount()).toBe(0);
     });
 });
