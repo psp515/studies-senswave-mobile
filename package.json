@@ -8,11 +8,16 @@
     "ios": "expo run:ios",
     "lint": "eslint .",
     "fix": "eslint . --fix",
-    "test": "jest"
+    "test": "jest",
+    "proto:sync": "node scripts/proto-sync.js",
+    "proto:gen": "node scripts/proto-gen.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@microsoft/signalr": "^8.0.7",
+    "@protobuf-ts/grpcweb-transport": "^2.11.1",
+    "@protobuf-ts/runtime": "^2.11.1",
+    "@protobuf-ts/runtime-rpc": "^2.11.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.0.1",
     "@react-native-google-signin/google-signin": "^16.1.1",
@@ -48,6 +53,8 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@eslint/js": "^9.19.0",
+    "@protobuf-ts/plugin": "^2.11.1",
+    "@protobuf-ts/protoc": "^2.11.1",
     "@react-native-community/cli": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.1.10",
@@ -72,6 +79,9 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     },
-    "testPathIgnorePatterns": ["/node_modules/", "/android/"]
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/android/"
+    ]
   }
 }

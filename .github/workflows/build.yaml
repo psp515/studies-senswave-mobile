@@ -28,6 +28,11 @@ jobs:
       - name: 🧪 Run tests
         run: npm test -- --ci
 
+      - name: 🧬 Check generated gRPC code is up to date
+        run: |
+          npm run proto:gen
+          git diff --exit-code -- src/generated
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 100
