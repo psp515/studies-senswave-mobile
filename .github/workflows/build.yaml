@@ -25,6 +25,9 @@ jobs:
       - name: 🚀 Run ESLint
         run: npm run lint
 
+      - name: 🧪 Run tests
+        run: npm test -- --ci
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 100
