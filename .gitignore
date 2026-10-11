@@ -37,3 +37,6 @@ yarn-error.*
 .env
 /android
 .claude/
+
+# dev TLS certificate (see certs/README.md)
+certs/*.crt

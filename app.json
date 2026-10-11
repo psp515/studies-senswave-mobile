@@ -99,7 +99,8 @@
           "imageWidth": 200
         }
       ],
-      "expo-router"
+      "expo-router",
+      "./plugins/withDevCaTrust"
     ]
   }
 }
