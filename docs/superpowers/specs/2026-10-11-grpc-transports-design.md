@@ -116,7 +116,7 @@ Metadata keys ending in `-bin` are passed base64-encoded in both directions.
 ## gRPC-Web
 
 - `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, `format: "binary"`, `baseUrl` set to the API origin.
-- The transport must run on `fetch` from `expo/fetch`, which supports streamed response bodies on Android. React Native's built-in `fetch` buffers the whole body, which breaks the `Subscribe` stream. If the transport does not accept an injected `fetch`, wrap it in a thin subclass or vendor a minimal transport. Decide this during implementation.
+- The transport must run on `fetch` from `expo/fetch`, which supports streamed response bodies on Android. React Native's built-in `fetch` buffers the whole body, which breaks the `Subscribe` stream. *Resolved 2026-10-11:* `GrpcWebOptions` (2.11.1) has a `fetch` option, so `expo/fetch` is injected directly; the transport reads the body with `getReader()`.
 - **Acceptance criterion:** on an Android device, `Subscribe` delivers `Initialized` and then a later update incrementally, without waiting for the stream to end.
 
 ## Dev TLS trust
@@ -125,7 +125,7 @@ Metadata keys ending in `-bin` are passed base64-encoded in both directions.
 - The config adds a `<domain-config>` for the dev hosts listed in `EXPO_PUBLIC_DEV_CA_HOSTS` (comma-separated, read at prebuild). Inside it, the bundled `certs/dev-ca.crt` and the system CAs are trust anchors.
 - The plugin applies to every build type, as requested. Trust is scoped to the listed dev hosts, so production domains such as `api.senswave.net` keep system CAs only. Do not move the dev CA into `<base-config>`: the production app would then trust a CA whose private key lives on developer machines.
 - OkHttp (native gRPC), React Native `fetch` and `expo/fetch` all use the platform trust manager, so the one config covers all three transports.
-- The dev certificate's SAN must match the host the app calls. Verify during implementation whether `domain-config` matches IP literals such as `10.0.2.2`. If it does not, use a host name for the dev backend.
+- The dev certificate's SAN must match the host the app calls. *Resolved 2026-10-11:* the backend's `docker/generate-cert.sh` certificate has SAN `api`, `localhost`, `127.0.0.1`. The emulator reaches it with `adb reverse tcp:7070 tcp:7070` at `https://localhost:7070`, so `EXPO_PUBLIC_DEV_CA_HOSTS=localhost` and no IP-literal `domain-config` is needed.
 
 ## Live updates
 
