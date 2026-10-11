@@ -40,3 +40,7 @@ yarn-error.*
 
 # dev TLS certificate (see certs/README.md)
 certs/*.crt
+
+# Native module build output
+modules/*/android/build/
+modules/*/android/.cxx/
