@@ -74,6 +74,9 @@
     "typescript-eslint": "^8.53.0"
   },
   "private": true,
+  "config": {
+    "protocVersion": "36.2"
+  },
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {

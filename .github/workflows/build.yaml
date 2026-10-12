@@ -31,7 +31,11 @@ jobs:
       - name: 🧬 Check generated gRPC code is up to date
         run: |
           npm run proto:gen
-          git diff --exit-code -- src/generated
+          if [ -n "$(git status --porcelain -- src/generated)" ]; then
+            git status --porcelain -- src/generated
+            echo "Generated gRPC code is out of date. Run npm run proto:gen and commit."
+            exit 1
+          fi
 
   build:
     runs-on: ubuntu-latest
