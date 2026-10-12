@@ -3,26 +3,15 @@ import RootToast from "react-native-root-toast";
 import { useTheme } from "./ThemeProvider";
 import { HttpResponse } from "@/utils/httpClient";
 import { Keyboard } from "react-native";
+import { ApiError, apiErrorMessage } from "@/api/apiError";
+import { apiErrorFromProblemDetails } from "@/api/rest/problemDetails";
 
 interface ToastContextType {
     success: (message: string) => void;
     info: (message: string) => void;
     error: (message: string) => void;
     httpError: (message: HttpResponse) => void;
-}
-
-interface ErrorDetail {
-    code: string;
-    type: number;
-    description: string;
-}
-
-interface ResponseError {
-    statusCode: number;
-    title: string;
-    type: string;
-    errors: ErrorDetail[];
-    traceId: string;
+    apiError: (error: ApiError) => void;
 }
 
 const ToastContext = createContext<ToastContextType>({
@@ -36,6 +25,9 @@ const ToastContext = createContext<ToastContextType>({
         console.debug("[Toast Context] Not initialized.");
     },
     httpError: () => {
+        console.debug("[Toast Context] Not initialized.");
+    },
+    apiError: () => {
         console.debug("[Toast Context] Not initialized.");
     },
 });
@@ -67,6 +59,18 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
         });
     };
 
+    const apiError = (apiErr: ApiError) => {
+        const details = apiErr.errors
+            .map((e) => `Code: ${e.code}, Description: ${e.description}`)
+            .join("\n");
+
+        console.error(
+            `[Api Error] Status: ${apiErr.statusText}, Trace: ${apiErr.traceId ?? "-"}, Details: ${details}`,
+        );
+
+        error(apiErrorMessage(apiErr));
+    };
+
     const httpError = async (httpResponse: HttpResponse) => {
         if (httpResponse.statusCode === 401) return;
 
@@ -78,34 +82,27 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
         let text: string | undefined;
         try {
             text = await httpResponse.response.text();
-            const response = JSON.parse(text) as ResponseError;
-
-            if (response.errors && response.errors.length > 0) {
-                const errorDetails = response.errors
-                    .map(
-                        (error: ErrorDetail) =>
-                            `Code: ${error.code}, Type: ${error.type}, Description: ${error.description}`,
-                    )
-                    .join("\n");
-
-                console.error(`[Http Error] Error type: ${response.type},
-                    Status code: ${response.statusCode},
-                    Title: ${response.title},
-                    Details: ${errorDetails}`);
-
-                const firstError = response.errors[0];
-                error(firstError.description ? firstError.description : firstError.code);
-            } else {
-                error("An unexpected error occurred.");
-            }
         } catch (e) {
-            console.error(text);
             console.error(
-                `[Toast Http Error] Failed to parse error response to ${httpResponse.response?.url}`,
+                `[Toast Http Error] Failed to read error response from ${httpResponse.response?.url}`,
                 e,
             );
             error("An unexpected error occurred.");
+            return;
         }
+
+        const parsed = apiErrorFromProblemDetails(text);
+
+        if (!parsed) {
+            console.error(
+                `[Toast Http Error] Failed to parse error response from ${httpResponse.response?.url}`,
+                text,
+            );
+            error("An unexpected error occurred.");
+            return;
+        }
+
+        apiError(parsed);
     };
 
     const info = (message: string) => {
@@ -120,7 +117,7 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
     };
 
     return (
-        <ToastContext.Provider value={{ success, info, error, httpError }}>
+        <ToastContext.Provider value={{ success, info, error, httpError, apiError }}>
             {children}
         </ToastContext.Provider>
     );

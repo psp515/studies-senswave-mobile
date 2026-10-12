@@ -25,6 +25,18 @@ jobs:
       - name: 🚀 Run ESLint
         run: npm run lint
 
+      - name: 🧪 Run tests
+        run: npm test -- --ci
+
+      - name: 🧬 Check generated gRPC code is up to date
+        run: |
+          npm run proto:gen
+          if [ -n "$(git status --porcelain -- src/generated)" ]; then
+            git status --porcelain -- src/generated
+            echo "Generated gRPC code is out of date. Run npm run proto:gen and commit."
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 100

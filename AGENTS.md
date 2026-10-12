@@ -28,6 +28,7 @@ Senswave is a Smart Home platform for DIY devices.
 | Real-time | SignalR (`@microsoft/signalr` 8.x) |
 | Auth storage | `expo-secure-store` |
 | Backend | .NET Minimal API — modular monolith (`Senswave.sln`) |
+| API transport | REST (default), gRPC (`grpc-okhttp` native module), gRPC-Web (`expo/fetch`), selected by `EXPO_PUBLIC_TRANSPORT` |
 
 Current app version: **1.1.0**
 
@@ -237,6 +238,19 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 
 ---
 
+## Transports (REST, gRPC, gRPC-Web)
+
+- Mode: `EXPO_PUBLIC_TRANSPORT` (`src/config/transport.ts`), read once at startup. All three modes are supported long-term; `Rest` is the default.
+- Contracts: backend protos vendored in `protos/`, TS generated into `src/generated/` by `protobuf-ts`. Both are committed; never edit them by hand. After backend contract changes run `npm run proto:sync`.
+- `Grpc`: `NativeGrpcTransport` → local Expo module `modules/senswave-grpc` (Kotlin, `grpc-okhttp`). JS (de)serializes; Kotlin passes bytes and metadata only. Android only. Loaded lazily, only in `Grpc` mode.
+- `GrpcWeb`: `GrpcWebFetchTransport` (binary) on `expo/fetch` (streams response bodies, needed for live updates).
+- `useGrpcClient().call((options) => client.method(request, options))` wraps unary calls: 15 s deadline, bearer token, refresh-and-retry on `UNAUTHENTICATED`, logout on consent `PERMISSION_DENIED`, errors as `ApiError` (`senswave-errors-bin` trailers). Status mapping: `src/api/grpc/status.ts`. (refresh works in gRPC modes from Plan 2; until then SessionProvider.refresh() uses REST).
+- `GET api/version` and the confirm-email link stay HTTP in every mode. Google login is REST-only.
+- Dev HTTPS: see `certs/README.md` (`adb reverse tcp:7070 tcp:7070`, `https://localhost:7070`).
+- Design: `docs/superpowers/specs/2026-10-11-grpc-transports-design.md`.
+
+---
+
 ## Authentication
 
 - Email/password login
@@ -329,6 +343,8 @@ Context: `useLiveUpdate()` — exposes `addDeviceTileCallback(deviceId, cb)` and
 | `EXPO_PUBLIC_API_GOOGLE_CLIENT_ID` | Google OAuth API client ID | — |
 | `EXPO_PUBLIC_MINIMAL_API_VERSION` | Minimum compatible API version | `1.0.0` |
 | `EXPO_PUBLIC_CONTACT_EMAIL` | Support email shown in app | `contact@senswave.net` |
+| `EXPO_PUBLIC_TRANSPORT` | `Rest`, `Grpc` or `GrpcWeb`; must match backend `Transport__Mode`. gRPC modes need an `https://` API URL | `Rest` |
+| `EXPO_PUBLIC_DEV_CA_HOSTS` | Comma-separated dev hosts trusting `certs/dev-ca.crt` (prebuild time). Never list production hosts | empty |
 
 Create `.env` from `.env.template` before first run.
 
@@ -350,6 +366,9 @@ npx expo run:android        # first build (compiles native code)
 npm start                   # subsequent runs (after first build)
 npm run lint                # ESLint check
 npm run fix                 # ESLint auto-fix
+npm test                    # Jest unit tests
+npm run proto:sync          # copy protos from ../studies-senswave-backend and regenerate src/generated
+npm run proto:gen           # regenerate src/generated from protos/
 ```
 
 - Always verify backend build at `Senswave.sln` level when touching shared contracts

@@ -7,7 +7,13 @@ const prettier = require("eslint-plugin-prettier");
 
 module.exports = [
     {
-        ignores: [".expo/**", "node_modules/**", "dist/**", "build/**", "*.config.js", "*.config.cjs"],
+        ignores: [".expo/**", "node_modules/**", "dist/**", "build/**", "*.config.js", "*.config.cjs", "src/generated/**"],
+    },
+    {
+        files: ["scripts/**/*.js", "plugins/**/*.js"],
+        languageOptions: {
+            globals: { require: "readonly", module: "writable", __dirname: "readonly", process: "readonly", console: "readonly", describe: "readonly", it: "readonly", expect: "readonly" },
+        },
     },
     js.configs.recommended,
     ...tseslint.configs.recommended,
