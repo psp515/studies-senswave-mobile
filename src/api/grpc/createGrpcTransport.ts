@@ -3,6 +3,7 @@ import { MethodInfo, RpcInterceptor, RpcOptions, RpcTransport } from "@protobuf-
 import { fetch as expoFetch } from "expo/fetch";
 import { TransportMode } from "@/config/transport";
 import { isAnonymousService } from "./status";
+import { createGrpcWebFetch } from "./grpcWebFetch";
 import { NativeGrpcTransport } from "./native/NativeGrpcTransport";
 import { NativeGrpcBridge } from "./native/nativeGrpcBridge";
 
@@ -45,7 +46,7 @@ export const createGrpcTransport = (
         return new GrpcWebFetchTransport({
             baseUrl: deps.getBaseUrl().origin,
             format: "binary",
-            fetch: expoFetch as unknown as typeof fetch,
+            fetch: createGrpcWebFetch(expoFetch as unknown as typeof fetch),
             interceptors,
         });
     }
