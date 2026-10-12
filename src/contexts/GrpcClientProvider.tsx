@@ -74,7 +74,6 @@ export const GrpcClientProvider: FC<PropsWithChildren> = ({ children }) => {
                   })
                 : null,
         // Rebuilt when the API origin changes (overrideUrl in Development).
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [origin],
     );
 
