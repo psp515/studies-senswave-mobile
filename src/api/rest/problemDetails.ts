@@ -24,7 +24,11 @@ export const apiErrorFromProblemDetails = (text: string): ApiError | null => {
         return null;
     }
 
-    const errors = Array.isArray(body.errors) ? (body.errors as ProblemDetailsError[]) : [];
+    const errors = Array.isArray(body.errors)
+        ? (body.errors as unknown[]).filter(
+              (e): e is ProblemDetailsError => !!e && typeof e === "object",
+          )
+        : [];
 
     return {
         statusText: body.title ?? "",

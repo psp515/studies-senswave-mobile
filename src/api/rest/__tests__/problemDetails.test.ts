@@ -37,4 +37,13 @@ describe("apiErrorFromProblemDetails", () => {
     it("returns null for a JSON non-object", () => {
         expect(apiErrorFromProblemDetails("42")).toBeNull();
     });
+
+    it("ignores null and non-object entries in errors", () => {
+        const text = JSON.stringify({
+            title: "Bad",
+            errors: [null, 1, { code: "A", description: "d" }],
+        });
+
+        expect(apiErrorFromProblemDetails(text)?.errors).toEqual([{ code: "A", description: "d" }]);
+    });
 });
