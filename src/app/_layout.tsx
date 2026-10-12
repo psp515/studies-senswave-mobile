@@ -16,6 +16,7 @@ import { HttpClientProvider } from "@/contexts/HttpClientProvider";
 import { UserProvider } from "@/contexts/domain/UserProvider";
 import { LegalProvider } from "@/contexts/domain/LegalProvider";
 import { SignalRProvider } from "@/contexts/SignalRProvider";
+import { GrpcClientProvider } from "@/contexts/GrpcClientProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
@@ -58,11 +59,13 @@ export default function RootLayout() {
                                         <SessionProvider>
                                             <ThemeProvider>
                                                 <HttpClientProvider>
-                                                    <SignalRProvider>
-                                                        <UserProvider>
-                                                            <RootLayoutInner />
-                                                        </UserProvider>
-                                                    </SignalRProvider>
+                                                    <GrpcClientProvider>
+                                                        <SignalRProvider>
+                                                            <UserProvider>
+                                                                <RootLayoutInner />
+                                                            </UserProvider>
+                                                        </SignalRProvider>
+                                                    </GrpcClientProvider>
                                                 </HttpClientProvider>
                                             </ThemeProvider>
                                         </SessionProvider>
