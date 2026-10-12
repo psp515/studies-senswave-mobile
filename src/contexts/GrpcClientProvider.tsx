@@ -17,7 +17,7 @@ import {
 } from "@/config/transport";
 import { createGrpcTransport } from "@/api/grpc/createGrpcTransport";
 import { executeGrpcCall, GrpcCallDeps, GrpcInvoke, GrpcOutcome } from "@/api/grpc/executeGrpcCall";
-import { nativeGrpcBridge } from "@/api/grpc/native/nativeModule";
+import { getNativeGrpcBridge } from "@/api/grpc/native/nativeModule";
 import { runGrpcSmokeTest } from "@/api/grpc/smokeTest";
 import { useSession } from "./SessionProvider";
 import { useConfiguration } from "./ConfigurationProvider";
@@ -69,7 +69,7 @@ export const GrpcClientProvider: FC<PropsWithChildren> = ({ children }) => {
                 ? createGrpcTransport(transportMode as Exclude<TransportMode, "Rest">, {
                       getBaseUrl: () => configurationRef.current.getBaseUrl(),
                       getAccessToken: () => sessionRef.current.session.accessToken,
-                      bridge: nativeGrpcBridge,
+                      getBridge: getNativeGrpcBridge,
                   })
                 : null,
         // Rebuilt when the API origin changes (overrideUrl in Development).

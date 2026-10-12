@@ -27,7 +27,7 @@ const fakeBridge = (): jest.Mocked<NativeGrpcBridge> =>
 const deps = (bridge: NativeGrpcBridge, token?: string) => ({
     getBaseUrl: () => new URL("https://localhost:7070/ignored/path"),
     getAccessToken: () => token,
-    bridge,
+    getBridge: () => bridge,
 });
 
 describe("withAuthorization", () => {
@@ -87,9 +87,11 @@ describe("createGrpcTransport", () => {
             };
         }
         mockExpoFetch.mockRejectedValue(new TypeError("offline"));
-        const transport = createGrpcTransport("GrpcWeb", deps(fakeBridge()));
+        const getBridge = jest.fn(() => fakeBridge());
+        const transport = createGrpcTransport("GrpcWeb", { ...deps(fakeBridge()), getBridge });
 
         expect(transport).toBeInstanceOf(GrpcWebFetchTransport);
+        expect(getBridge).not.toHaveBeenCalled();
 
         await new LegalServiceClient(transport).getPrivacyPolicy({}).then(
             () => undefined,

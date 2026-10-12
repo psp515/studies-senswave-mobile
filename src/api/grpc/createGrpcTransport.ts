@@ -9,7 +9,7 @@ import { NativeGrpcBridge } from "./native/nativeGrpcBridge";
 export interface GrpcTransportDeps {
     getBaseUrl: () => URL;
     getAccessToken: () => string | undefined;
-    bridge: NativeGrpcBridge;
+    getBridge: () => NativeGrpcBridge;
 }
 
 export const withAuthorization = (
@@ -51,7 +51,7 @@ export const createGrpcTransport = (
     }
 
     return new NativeGrpcTransport({
-        bridge: deps.bridge,
+        bridge: deps.getBridge(),
         getBaseUrl: () => deps.getBaseUrl().origin,
         interceptors,
     });
