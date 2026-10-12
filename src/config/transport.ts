@@ -31,3 +31,17 @@ export const validateBaseUrlForMode = (mode: TransportMode, baseUrl: URL): strin
 
     return null;
 };
+
+/** API origin for gRPC modes; null in Rest mode (getBaseUrl is not called) or when the URL is invalid. */
+export const resolveGrpcOrigin = (mode: TransportMode, getBaseUrl: () => URL): string | null => {
+    if (!isGrpcMode(mode)) {
+        return null;
+    }
+
+    try {
+        return getBaseUrl().origin;
+    } catch (error) {
+        console.error("[Transport] Failed to resolve the API URL.", error);
+        return null;
+    }
+};

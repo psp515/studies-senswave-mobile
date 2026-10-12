@@ -11,6 +11,7 @@ import React, {
 import { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import {
     isGrpcMode,
+    resolveGrpcOrigin,
     TransportMode,
     transportMode,
     validateBaseUrlForMode,
@@ -61,11 +62,11 @@ export const GrpcClientProvider: FC<PropsWithChildren> = ({ children }) => {
 
     const refreshFailureCountRef = useRef(0);
 
-    const origin = configuration.getBaseUrl().origin;
+    const origin = resolveGrpcOrigin(transportMode, () => configuration.getBaseUrl());
 
     const transport = useMemo(
         () =>
-            isGrpcMode(transportMode)
+            isGrpcMode(transportMode) && origin
                 ? createGrpcTransport(transportMode as Exclude<TransportMode, "Rest">, {
                       getBaseUrl: () => configurationRef.current.getBaseUrl(),
                       getAccessToken: () => sessionRef.current.session.accessToken,
@@ -79,6 +80,9 @@ export const GrpcClientProvider: FC<PropsWithChildren> = ({ children }) => {
 
     useEffect(() => {
         console.info(`[GrpcClient] Transport mode: ${transportMode}`);
+        if (!origin) {
+            return;
+        }
         const problem = validateBaseUrlForMode(transportMode, new URL(origin));
         if (problem) {
             console.error(`[GrpcClient] ${problem}`);

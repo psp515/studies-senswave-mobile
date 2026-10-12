@@ -1,4 +1,9 @@
-import { isGrpcMode, parseTransportMode, validateBaseUrlForMode } from "@/config/transport";
+import {
+    isGrpcMode,
+    parseTransportMode,
+    resolveGrpcOrigin,
+    validateBaseUrlForMode,
+} from "@/config/transport";
 
 describe("parseTransportMode", () => {
     it.each([
@@ -44,5 +49,30 @@ describe("validateBaseUrlForMode", () => {
         expect(validateBaseUrlForMode("Grpc", new URL("http://10.0.2.2:8080"))).toBe(
             "Transport Grpc requires an https:// API URL, got http://10.0.2.2:8080.",
         );
+    });
+});
+
+describe("resolveGrpcOrigin", () => {
+    it("returns null in Rest mode without calling getBaseUrl", () => {
+        const getBaseUrl = jest.fn();
+        expect(resolveGrpcOrigin("Rest", getBaseUrl)).toBeNull();
+        expect(getBaseUrl).not.toHaveBeenCalled();
+    });
+
+    it("returns the API origin in gRPC modes", () => {
+        const getBaseUrl = () => new URL("https://example.com:7070/api/v1");
+        expect(resolveGrpcOrigin("Grpc", getBaseUrl)).toBe("https://example.com:7070");
+        expect(resolveGrpcOrigin("GrpcWeb", getBaseUrl)).toBe("https://example.com:7070");
+    });
+
+    it("logs and returns null when getBaseUrl throws", () => {
+        const spy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        expect(
+            resolveGrpcOrigin("Grpc", () => {
+                throw new Error("bad url");
+            }),
+        ).toBeNull();
+        expect(spy).toHaveBeenCalled();
+        spy.mockRestore();
     });
 });
