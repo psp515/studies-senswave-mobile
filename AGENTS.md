@@ -244,7 +244,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - Contracts: backend protos vendored in `protos/`, TS generated into `src/generated/` by `protobuf-ts`. Both are committed; never edit them by hand. After backend contract changes run `npm run proto:sync`.
 - `Grpc`: `NativeGrpcTransport` → local Expo module `modules/senswave-grpc` (Kotlin, `grpc-okhttp`). JS (de)serializes; Kotlin passes bytes and metadata only. Android only. Loaded lazily, only in `Grpc` mode.
 - `GrpcWeb`: `GrpcWebFetchTransport` (binary) on `expo/fetch` (streams response bodies, needed for live updates).
-- `useGrpcClient().call((options) => client.method(request, options))` wraps unary calls: 15 s deadline, bearer token, refresh-and-retry on `UNAUTHENTICATED`, logout on consent `PERMISSION_DENIED`, errors as `ApiError` (`senswave-errors-bin` trailers). Status mapping: `src/api/grpc/status.ts`.
+- `useGrpcClient().call((options) => client.method(request, options))` wraps unary calls: 15 s deadline, bearer token, refresh-and-retry on `UNAUTHENTICATED`, logout on consent `PERMISSION_DENIED`, errors as `ApiError` (`senswave-errors-bin` trailers). Status mapping: `src/api/grpc/status.ts`. (refresh works in gRPC modes from Plan 2; until then SessionProvider.refresh() uses REST).
 - `GET api/version` and the confirm-email link stay HTTP in every mode. Google login is REST-only.
 - Dev HTTPS: see `certs/README.md` (`adb reverse tcp:7070 tcp:7070`, `https://localhost:7070`).
 - Design: `docs/superpowers/specs/2026-10-11-grpc-transports-design.md`.

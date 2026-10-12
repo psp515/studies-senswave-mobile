@@ -10,3 +10,5 @@ Setup for the Android emulator:
 4. Rebuild native code: `npx expo prebuild --platform android --clean`, then `npx expo run:android`.
 
 Without the certificate or hosts the plugin does nothing and the app trusts system CAs only.
+
+To disable dev CA trust, clear `EXPO_PUBLIC_DEV_CA_HOSTS` (or remove `certs/dev-ca.crt`) AND run `npx expo prebuild --platform android --clean`; without `--clean` the previously copied CA, XML and manifest attribute stay in `android/`.
