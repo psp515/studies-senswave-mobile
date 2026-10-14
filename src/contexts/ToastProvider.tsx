@@ -3,12 +3,14 @@ import RootToast from "react-native-root-toast";
 import { useTheme } from "./ThemeProvider";
 import { HttpResponse } from "@/utils/httpClient";
 import { Keyboard } from "react-native";
+import { toastTextFor, type FailedResultLike } from "@/api/toastDecision";
 
 interface ToastContextType {
     success: (message: string) => void;
     info: (message: string) => void;
     error: (message: string) => void;
     httpError: (message: HttpResponse) => void;
+    apiError: (result: FailedResultLike, fallback?: string) => void;
 }
 
 interface ErrorDetail {
@@ -38,6 +40,9 @@ const ToastContext = createContext<ToastContextType>({
     httpError: () => {
         console.debug("[Toast Context] Not initialized.");
     },
+    apiError: () => {
+        console.debug("[Toast Context] Not initialized.");
+    },
 });
 
 export const useToast = () => useContext(ToastContext);
@@ -65,6 +70,11 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
             textColor: theme.current.colors.secondary,
             shadow: true,
         });
+    };
+
+    const apiError = (result: FailedResultLike, fallback?: string) => {
+        const text = toastTextFor(result, fallback);
+        if (text) error(text);
     };
 
     const httpError = async (httpResponse: HttpResponse) => {
@@ -120,7 +130,7 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
     };
 
     return (
-        <ToastContext.Provider value={{ success, info, error, httpError }}>
+        <ToastContext.Provider value={{ success, info, error, httpError, apiError }}>
             {children}
         </ToastContext.Provider>
     );
