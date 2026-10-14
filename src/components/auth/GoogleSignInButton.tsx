@@ -4,7 +4,7 @@ import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-si
 import Icon from "../common/Icon";
 import { useSession } from "@/contexts/SessionProvider";
 import { useToast } from "@/contexts/ToastProvider";
-import { useConfiguration } from "@/contexts/ConfigurationProvider";
+import { useAnonymousApi } from "@/contexts/AnonymousApiProvider";
 import { useTheme } from "@/contexts/ThemeProvider";
 
 const ICON_SIZE = 32;
@@ -13,7 +13,7 @@ const GoogleSignInButton: React.FC = () => {
     const theme = useTheme();
     const session = useSession();
     const toast = useToast();
-    const configuration = useConfiguration();
+    const api = useAnonymousApi();
     const [loading, setLoading] = useState(false);
 
     const onPress = async () => {
@@ -53,7 +53,7 @@ const GoogleSignInButton: React.FC = () => {
         }
     };
 
-    if (configuration.transportMode !== "Rest") return null;
+    if (api.transportMode !== "Rest") return null;
 
     return (
         <Pressable

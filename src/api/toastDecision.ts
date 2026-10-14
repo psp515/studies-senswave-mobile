@@ -9,7 +9,11 @@ export interface FailedResultLike {
 
 export const DefaultErrorToastText = "An unexpected error occurred.";
 
-/** Codes the interceptor chain already reacted to (logout + toast). Callers stay silent. */
+/**
+ * Codes the interceptor chain already handles: PermissionDenied -> logout + toast;
+ * Unauthenticated -> refresh/logout path (toast only after repeated refresh failures).
+ * Callers stay silent.
+ */
 const HandledCodes: ReadonlySet<Code> = new Set([Code.Unauthenticated, Code.PermissionDenied]);
 
 export const toastTextFor = (

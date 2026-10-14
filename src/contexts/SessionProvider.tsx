@@ -1,4 +1,4 @@
-import React, { FC, PropsWithChildren, useState } from "react";
+import React, { FC, PropsWithChildren, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import { createContext, useContext, useEffect } from "react";
@@ -98,6 +98,9 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
     const router = useRouter();
     const configuration = useConfiguration();
     const api = useAnonymousApi();
+    const apiRef = useRef(api);
+    apiRef.current = api;
+    const refreshInFlight = useRef<Promise<string | null> | null>(null);
 
     const [session, setSession] = useState<Session>(Initialized);
     const [rememberMe, setRememberMe] = useState(false);
@@ -250,7 +253,7 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
         return SimpleResult.failure("Google login failed.");
     };
 
-    const refresh = async (): Promise<string | null> => {
+    const doRefresh = async (): Promise<string | null> => {
         try {
             if (!session.refreshToken) {
                 setSession(Unauthenticated);
@@ -258,7 +261,7 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
             }
 
             const result = await call(() =>
-                api.auth.refresh({ refreshToken: session.refreshToken }),
+                apiRef.current.auth.refresh({ refreshToken: session.refreshToken }),
             );
 
             if (result.isSuccess) {
@@ -286,14 +289,27 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
             }
 
             // Network/server error - preserve session, let caller decide
-            setSession({ ...session, loading: false });
+            setSession((s) => ({ ...s, loading: false }));
             console.warn(`[Session Provider] Refresh error: ${result.error?.code}`);
             return null;
         } catch (error) {
-            setSession({ ...session, loading: false });
+            setSession((s) => ({ ...s, loading: false }));
             console.error(`[Session Provider] Unexpected error when refreshing tokens. ${error}`);
             return null;
         }
+    };
+
+    // Concurrent callers (legacy HttpClient and ApiProvider) share one in-flight refresh.
+    const refresh = (): Promise<string | null> => {
+        if (refreshInFlight.current) {
+            return refreshInFlight.current;
+        }
+
+        const promise = doRefresh().finally(() => {
+            refreshInFlight.current = null;
+        });
+        refreshInFlight.current = promise;
+        return promise;
     };
 
     const logout = () => {
@@ -414,7 +430,7 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
                 return;
             }
 
-            const result = await call(() => api.auth.refresh({ refreshToken }));
+            const result = await call(() => apiRef.current.auth.refresh({ refreshToken }));
 
             if (result.isSuccess) {
                 console.debug("[Session Provider] Token refreshed successfully");
