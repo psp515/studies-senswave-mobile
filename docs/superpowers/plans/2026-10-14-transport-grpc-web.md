@@ -4,9 +4,9 @@
 
 **Goal:** Make `TransportMode = "GrpcWeb"` work end to end: `createGrpcWebTransport` from `@connectrpc/connect-web` with the shared interceptors, streaming-capable `fetch` polyfills for React Native (needed by the live-update stream), a dev-only transport selector on `server.tsx`, and logout when base URL or mode changes.
 
-**Architecture:** `createTransport` gains the `GrpcWeb` case (`createGrpcWebTransport({ baseUrl, useBinaryFormat: true, fetch, interceptors, defaultTimeoutMs })`). `src/api/polyfills.ts` installs `react-native-fetch-api` + `web-streams-polyfill` + `text-encoding` once (imported first in `_layout.tsx`) and exports the polyfilled `fetch` used by both REST and gRPC-Web transports. `ConfigurationProvider` exposes `overrideTransportMode` already; `server.tsx` gets a `HorizontalSelector` over `TransportModes` and a warning when `requestedTransportMode !== transportMode`. `ApiProvider` logs the session out when `baseUrl`/`requestedTransportMode` change after first mount.
+**Architecture:** `createTransport` gains the `GrpcWeb` case (`createGrpcWebTransport({ baseUrl, useBinaryFormat: true, fetch, interceptors, defaultTimeoutMs })`). `src/api/polyfills.ts` installs `web-streams-polyfill` + `text-encoding` once (only where missing) and wraps `expo/fetch` (imported first in `_layout.tsx`) and exports `streamingFetch` used by both REST and gRPC-Web transports. `ConfigurationProvider` exposes `overrideTransportMode` already; `server.tsx` gets a `HorizontalSelector` over `TransportModes` and a warning when `requestedTransportMode !== transportMode`. `ApiProvider` logs the session out when `baseUrl`/`requestedTransportMode` change after first mount.
 
-**Tech Stack:** Expo 54, TS strict, `@connectrpc/connect-web` 2.2, `react-native-fetch-api`, `web-streams-polyfill`, `text-encoding`, jest-expo.
+**Tech Stack:** Expo 54, TS strict, `@connectrpc/connect-web` 2.2, `expo/fetch`, `web-streams-polyfill`, `text-encoding`, jest-expo.
 
 **Spec:** `docs/superpowers/specs/2026-10-14-transport-abstraction-design.md` §1 (mode selection, logout on change), §2b
 
@@ -48,19 +48,19 @@ Until now streams were never reachable (REST `stream()` throws). gRPC-Web makes 
 
 ### Task 1: Polyfills and gRPC-Web transport
 
-- [ ] `npm install react-native-fetch-api web-streams-polyfill text-encoding` (+ `@types/text-encoding` dev if needed). `src/api/polyfills.ts`:
+- [ ] `npm install web-streams-polyfill text-encoding` (+ `@types/text-encoding` dev if needed). `src/api/polyfills.ts`:
   ```ts
   import { polyfillGlobal } from "react-native/Libraries/Utilities/PolyfillFunctions";
   import { ReadableStream } from "web-streams-polyfill";
-  import { fetch as rnFetch, Headers, Request, Response } from "react-native-fetch-api";
+  import { fetch as expoFetch } from "expo/fetch";
   import { TextDecoder, TextEncoder } from "text-encoding";
   // install once, only where missing
   if (typeof globalThis.ReadableStream === "undefined") polyfillGlobal("ReadableStream", () => ReadableStream);
   if (typeof globalThis.TextEncoder === "undefined") polyfillGlobal("TextEncoder", () => TextEncoder);
   if (typeof globalThis.TextDecoder === "undefined") polyfillGlobal("TextDecoder", () => TextDecoder);
-  export const streamingFetch: typeof fetch = (input, init) => rnFetch(input as never, { ...init, reactNative: { textStreaming: true } } as never);
+  export const streamingFetch: typeof fetch = expoFetch as unknown as typeof fetch;
   ```
-  Verify import paths against the installed packages (`node_modules/react-native-fetch-api/README.md`); if `polyfillGlobal` is not exported in RN 0.81, assign `globalThis.X = X` directly. Jest: keep `polyfills.ts` out of tests (node has fetch/streams); mock `react-native-fetch-api` in `jest.config.js` `moduleNameMapper` to a stub returning `globalThis.fetch` if any test imports it transitively.
+  Verify import paths against the installed packages (`node_modules/expo/fetch.d.ts`); if `polyfillGlobal` is not exported in RN 0.81, assign `globalThis.X = X` directly. Jest: keep `polyfills.ts` out of tests (node has fetch/streams); mock `expo/fetch` (`tests/__mocks__/expoFetch.ts`) in `jest.config.js` `moduleNameMapper` to a stub returning `globalThis.fetch` if any test imports it transitively.
 - [ ] `createGrpcWebTransport.ts`: `export const createSenswaveGrpcWebTransport = ({ baseUrl, fetch, interceptors, defaultTimeoutMs }) => createGrpcWebTransport({ baseUrl, useBinaryFormat: true, fetch: fetch ?? streamingFetch, interceptors, defaultTimeoutMs: defaultTimeoutMs ?? 15000 })`. Add the `GrpcWeb` case in `createTransport.ts`; REST transport default `fetch` becomes `streamingFetch` too (via `createTransport`, not inside `createRestTransport`, so unit tests keep injecting fakes).
 - [ ] Tests: build `UsersService` client over the gRPC-Web transport with a fake `fetch` that returns a valid gRPC-Web binary response (use connect's own encoding helpers: `encodeEnvelope` from `@connectrpc/connect/protocol` with the `GetUserResponse` bytes, plus a trailer frame `grpc-status: 0`); assert the request `Content-Type: application/grpc-web+proto`, URL `${baseUrl}/senswave.users.v1.UsersService/GetUser`, and the decoded response. Error path: trailer frame `grpc-status: 5` + `senswave-errors-bin: <base64 Error>` → `call()` yields `ApiError` with `Code.NotFound` and `errors[0].code`. Interceptor path: auth interceptor header present.
 - [ ] Commit `feat: grpc-web transport with streaming fetch polyfills`.
