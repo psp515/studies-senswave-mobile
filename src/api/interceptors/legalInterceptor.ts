@@ -18,7 +18,9 @@ export const createLegalInterceptor =
             return await next(req);
         } catch (e) {
             const code = ApiError.is(e) ? e.code : ConnectError.from(e).code;
-            // A revoked home share (PermissionDenied on the live-update stream) must not end the session.
+            // Streams are exempt: a revoked home share (PermissionDenied on the live-update stream)
+            // must not end the session. Consequence: if consents were revoked, the stream just ends
+            // (terminal, no retry) and the user is logged out by the next unary call, not here.
             const isLiveStream = req.stream || req.service.typeName === LiveUpdatesService.typeName;
             if (code === Code.PermissionDenied && !isLiveStream) {
                 deps.logout();

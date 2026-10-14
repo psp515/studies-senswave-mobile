@@ -49,7 +49,7 @@ Source: `E:\Projects\studies-senswave-backend` (Senswave.sln).
 |---|---|
 | Native gRPC on mobile | Android only, via a local Expo module wrapping `grpc-okhttp`. No iOS support. |
 | gRPC-Web wire format | Binary proto (`application/grpc-web+proto`). |
-| Mode selection | `EXPO_PUBLIC_TRANSPORT_MODE` env default; runtime override only when `EXPO_PUBLIC_ENVIRONMENT=Development` (same rule as URL override). Session is logged out when URL or mode changes (logout on change � implemented in PR 8). |
+| Mode selection | `EXPO_PUBLIC_TRANSPORT_MODE` env default; runtime override only when `EXPO_PUBLIC_ENVIRONMENT=Development` (same rule as URL override). Session is logged out when URL or mode changes (logout on change — implemented in PR 8). |
 | Scope | One spec covering data endpoints, auth, legal, live updates. Phased PR stack. |
 | Measurement | OpenTelemetry client spans with request/response byte attributes, W3C propagation, OTLP/HTTP export, opt-in by env var. |
 | Approach | Generated Connect clients as the single app API; transport swapped underneath (approach 2). |
@@ -165,10 +165,11 @@ const homesRoutes: { [K in keyof typeof HomesService.method]: RestRoute<...> };
 ### 2b GrpcWebTransport (`transport/grpcWeb/`)
 
 - `createGrpcWebTransport({ baseUrl, useBinaryFormat: true, fetch })`.
-- React Native's fetch does not expose a streaming `ReadableStream` body, so server streams
-  fail. `polyfills.ts` installs `react-native-fetch-api` (with `reactNative: { textStreaming: true }`),
-  `web-streams-polyfill` and `text-encoding`. Imported once in `_layout.tsx`. The polyfilled
-  fetch is used for unary calls too, for one code path.
+- React Native's built-in fetch does not expose a streaming `ReadableStream` body, so server
+  streams fail. `polyfills.ts` exports `streamingFetch` (`fetch` from `expo/fetch`, which is
+  binary-safe and streams response bodies) and installs `web-streams-polyfill` (`ReadableStream`)
+  and `text-encoding` (`TextEncoder` / `TextDecoder`) only where the globals are missing.
+  Imported once in `_layout.tsx`. `streamingFetch` is used for unary calls too, for one code path.
 
 ### 2c NativeGrpcTransport (`transport/nativeGrpc/`)
 
@@ -216,13 +217,18 @@ applies interceptors and the deadline). Timeout is therefore a transport option
   concurrent callers (promise dedupe — the current code refreshes once per failing request).
   If refresh returns null: increment the failure counter, show the "check your internet
   connection" toast at 10 failures (existing behaviour), rethrow. Otherwise retry once.
-- Streams: same header; no retry. The error reaches `LiveUpdateProvider`, which reconnects.
+- Streams: server-streaming requests get one refresh+retry while `next()` rejects with
+  `Unauthenticated` (before any message); never mid-stream; client/bidi streams never retried.
+  Later stream errors reach `LiveUpdateProvider`, which reconnects.
 
 ### legal
 
 `PermissionDenied` → `logout()` + `onForbidden(error)` (toast of `errors[0].description`,
 fallback "Access denied."). Same rule as the current 403 handling
 (LegalMiddleware / LegalConsentInterceptor: missing consents).
+
+Exempt: `req.stream` and `LiveUpdatesService` — a revoked home share or consent failure on the
+stream ends the stream (terminal, no retry) but does not log out; the next unary call does.
 
 ### timeout
 
@@ -302,6 +308,7 @@ interface LiveUpdateSource {
 `LiveUpdate` is the generated proto message, used in both modes.
 
 - gRPC / gRPC-Web: `for await (const u of api.liveUpdates.subscribe({ homeReferenceId }, { signal }))`.
+  The stream has no deadline (`timeoutMs: 0`; otherwise it would inherit the 15 s unary default).
   Reconnect on error after 15 s (existing rule). The `Initialized` message means connected.
 - REST: `SignalRLiveUpdateSource` wraps the current `SignalRProvider` logic. `"Update"(updateType, data)`
   is converted: `deviceTileActionUpdate` → `deviceTile`, `widgetsActionUpdate` → `widgets`,
