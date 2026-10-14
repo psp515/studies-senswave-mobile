@@ -1,8 +1,9 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect } from "react";
-import { useHttpClient } from "../HttpClientProvider";
+import { Code } from "@connectrpc/connect";
+import { call } from "@/api/call";
+import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
-import { Home, Room } from "@/types/HomeTypes";
-import { ListResponse } from "@/utils/httpClient";
+import { Home, toHome } from "@/types/HomeTypes";
 import { getCurrentLocation } from "@/utils/location";
 
 interface HomesContextProps {
@@ -41,17 +42,15 @@ export const useHomes = (): HomesContextProps => useContext(HomesContext);
 
 export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const [loading, setLoading] = useState<boolean>(true);
     const [currentHome, setCurrentHome] = useState<Home | undefined>(undefined);
 
     const setCurrent = async (homeId: string) => {
-        const response = await httpClient.get(`v1/homes/${homeId}`);
+        const result = await call(() => api.homes.getHome({ homeId }));
 
-        if (response.isSuccess) {
-            const data = await response.response!.json();
-            const home = data as Home;
-            setCurrentHome(home);
+        if (result.isSuccess) {
+            setCurrentHome(toHome(result.data!));
             console.info("[HomesProvider] Current home loaded.");
             return true;
         } else {
@@ -68,66 +67,60 @@ export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
             return;
         }
 
-        const result = await httpClient.get(`v1/homes/${currentHome?.id}/rooms/display`);
+        const homeId = currentHome.id;
+        const result = await call(() => api.rooms.displayRooms({ homeId }));
 
         if (result.isSuccess) {
-            const rooms = (await result.response!.json()) as ListResponse<Room>;
+            const rooms = result.data!.items.map(({ id, name }) => ({ id, name }));
 
             setCurrentHome((prev) => ({
                 ...prev!,
-                rooms: rooms.items || [],
+                rooms,
             }));
 
             console.debug("[Rooms View] Rooms refreshed.");
-        } else if (result.statusCode === 404) {
+        } else if (result.error?.code === Code.NotFound) {
             console.debug("[Rooms View] No rooms found.");
             setCurrentHome((prev) => ({
                 ...prev!,
                 rooms: [],
             }));
         } else {
-            toast.httpError(result);
+            toast.apiError(result);
         }
     };
 
     const initializeCurrentHome = async () => {
-        let path = "";
         const currentLocation = await getCurrentLocation();
         setLoading(true);
 
-        if (currentLocation) {
-            const { latitude, longitude } = currentLocation;
-            path = `?latitude=${latitude}&longitude=${longitude}`;
-        }
+        const latitude = currentLocation?.latitude;
+        const longitude = currentLocation?.longitude;
 
-        const response = await httpClient.get(`v1/homes/current${path}`);
+        const current = await call(() => api.homes.getCurrentHome({ latitude, longitude }));
 
-        if (response.statusCode === 404) {
-            toast.info("Create your first home!");
-            console.info("[HomesProvider] Homes not found.");
-            setCurrentHome(undefined);
+        if (!current.isSuccess) {
+            if (current.error?.code === Code.NotFound) {
+                toast.info("Create your first home!");
+                console.info("[HomesProvider] Homes not found.");
+                setCurrentHome(undefined);
+            } else {
+                toast.apiError(current);
+            }
             setLoading(false);
             return false;
-        } else if (response.statusCode >= 300) {
-            toast.httpError(response);
-            setLoading(false);
-            return false;
         }
 
-        const data = await response.response!.json();
-        const currentHome = data as Home;
+        const homeId = current.data!.id;
+        const homeResult = await call(() => api.homes.getHome({ homeId }));
 
-        const homeResponse = await httpClient.get(`v1/homes/${currentHome.id}`);
-
-        if (homeResponse.isSuccess) {
-            const data = await homeResponse.response!.json();
-            const home = data as Home;
-            setCurrentHome(home);
+        if (homeResult.isSuccess) {
+            setCurrentHome(toHome(homeResult.data!));
             console.info("[HomesProvider] Current home loaded.");
             setLoading(false);
             return true;
         } else {
-            toast.httpError(homeResponse);
+            toast.apiError(homeResult);
             setLoading(false);
             return false;
         }
@@ -136,18 +129,16 @@ export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const refreshCurrent = async () => {
         setLoading(true);
 
-        const response2 = await httpClient.get(`v1/homes/${currentHome?.id}`);
+        const homeId = currentHome?.id ?? "";
+        const result = await call(() => api.homes.getHome({ homeId }));
 
-        if (response2.isSuccess) {
-            const data = await response2.response!.json();
-            const home = data as Home;
-            setCurrentHome(home);
+        if (result.isSuccess) {
+            setCurrentHome(toHome(result.data!));
             console.info("[HomesProvider] Current home loaded.");
-            setLoading(false);
         } else {
             console.error("[HomesProvider] Failed to set current home.");
-            setLoading(false);
         }
+        setLoading(false);
     };
 
     const updateHomeDataSourceState = async (dataSourceId: string, state: string) => {

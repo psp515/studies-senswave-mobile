@@ -1,3 +1,5 @@
+import type { GetHomeResponse, HomeDto } from "@/api/gen/homes/v1/homes_pb";
+
 export type HomeSharingDto = {
     sharingId: string;
     friendEmail: string;
@@ -22,7 +24,7 @@ export interface Location {
 }
 
 export interface HomeDataSource {
-    id: string;
+    id?: string;
     name: string;
     state: string;
 }
@@ -34,7 +36,23 @@ export interface Home {
     icon: string;
     isOwner: boolean;
 
-    dataSource: HomeDataSource;
+    dataSource?: HomeDataSource;
     location: Location;
     rooms: Room[];
 }
+
+export type HomeListItemDto = HomeDto;
+
+export const toHome = (r: GetHomeResponse): Home => ({
+    id: r.id,
+    name: r.name,
+    icon: r.icon,
+    isOwner: r.isOwner,
+    dataSource: r.dataSource
+        ? { id: r.dataSource.id, name: r.dataSource.name, state: r.dataSource.state }
+        : undefined,
+    location: r.location
+        ? { latitude: r.location.latitude, longitude: r.location.longitude }
+        : { latitude: 0, longitude: 0 },
+    rooms: r.rooms.map(({ id, name }) => ({ id, name })),
+});
