@@ -77,7 +77,7 @@ src/
   contexts/
     ConfigurationProvider.tsx # API URL, SignalR URL, version check
     SessionProvider.tsx       # Auth state + all auth flows
-    HttpClientProvider.tsx    # HTTP client with auto token refresh
+    ApiProvider.tsx           # Generated Connect clients (useApi) + token refresh
     SignalRProvider.tsx        # SignalR hub connection
     ThemeProvider.tsx
     MenuProvider.tsx
@@ -103,7 +103,7 @@ src/
     DataSourcesTypes.tsx      # DataSourceDto, SubscriptionDto, MqttVersion
 
   utils/
-    httpClient.tsx            # executeTimeout, HttpResponse
+    httpClient.tsx            # executeTimeout, HttpResponse (config version check + Google login only)
     result.tsx                # Result<T>, SimpleResult
     location.tsx
 ```
@@ -207,24 +207,23 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 
 ## API Layer
 
-- New (migration in progress): `useApi()` from `ApiProvider` exposes Connect clients generated from
-  backend protos (`src/api/gen`). Transport chosen by `EXPO_PUBLIC_TRANSPORT_MODE`; REST transport
-  maps RPCs to REST routes in `src/api/transport/rest/routes/`. Wrap calls with `call()` /
-  `callSimple()` from `src/api/call.ts` to get `Result<T>` / `SimpleResult`.
-- `useHttpClient()` remains until all call sites are migrated.
-- Migrated: `SessionProvider` (except Google), `LegalProvider`, `UserProvider`. Provider order: Configuration > AnonymousApi > Legal > Session > Theme > HttpClient > Api > SignalR > User.
-- Migrated: homes, rooms, home sharing (PR 4).
-- Migrated: devices, dashboards, operations, widgets (PR 5).
-- Hook: `useHttpClient()` — methods: `get`, `post`, `patch`, `put`, `delete`
-- Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
-- 15s request timeout
-- Auto token refresh on 401 (retry once with new token)
-- **403** / `PermissionDenied` → logout (LegalMiddleware: missing user consents — user hasn't accepted latest Terms/Privacy)
+- `useApi()` from `ApiProvider` is the only API layer. It exposes Connect clients generated from
+  backend protos (`src/api/gen`, never edit). Transport chosen by `EXPO_PUBLIC_TRANSPORT_MODE`; the
+  REST transport maps RPCs to REST routes in `src/api/transport/rest/routes/`.
+- Provider order: Configuration > AnonymousApi > Legal > Session > Theme > Api > SignalR > User.
+- Wrap every call with `call()` / `callSimple()` from `src/api/call.ts` to get `Result<T>` /
+  `SimpleResult`. Show failures with `toast.apiError(result)` (bare; fixed wording goes into
+  `call()`); use `isNotFound(result)` for 404-as-empty cases. No `Code` imports in UI.
+- 15s request timeout; auto token refresh on 401 (retry once with new token), handled by `ApiProvider`.
+- `PermissionDenied` (HTTP 403) → logout (LegalMiddleware: missing user consents — user hasn't accepted latest Terms/Privacy)
 - **Never** call `fetch` directly outside `httpClient.tsx` and `src/api/transport/rest/`
 - Callers must consume api errors only through `call()` / `callSimple()` / `toApiError()`; never inspect a raw caught error.
+- REST path params must go through `seg()`; list responses through `items()`.
 - API path prefix: `/api/v1/...` (built by `ConfigurationProvider.getApiUrl`)
 
 ### Key API endpoints by feature
+
+These are the REST routes behind the generated clients (called via `useApi()`, not directly).
 
 | Feature | Endpoint | Method |
 |---------|----------|--------|

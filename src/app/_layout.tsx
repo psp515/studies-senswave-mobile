@@ -12,7 +12,6 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ConfigurationProvider } from "@/contexts/ConfigurationProvider";
-import { HttpClientProvider } from "@/contexts/HttpClientProvider";
 import { ApiProvider } from "@/contexts/ApiProvider";
 import { AnonymousApiProvider } from "@/contexts/AnonymousApiProvider";
 import { UserProvider } from "@/contexts/domain/UserProvider";
@@ -60,15 +59,13 @@ export default function RootLayout() {
                                         <LegalProvider>
                                             <SessionProvider>
                                                 <ThemeProvider>
-                                                    <HttpClientProvider>
-                                                        <ApiProvider>
-                                                            <SignalRProvider>
-                                                                <UserProvider>
-                                                                    <RootLayoutInner />
-                                                                </UserProvider>
-                                                            </SignalRProvider>
-                                                        </ApiProvider>
-                                                    </HttpClientProvider>
+                                                    <ApiProvider>
+                                                        <SignalRProvider>
+                                                            <UserProvider>
+                                                                <RootLayoutInner />
+                                                            </UserProvider>
+                                                        </SignalRProvider>
+                                                    </ApiProvider>
                                                 </ThemeProvider>
                                             </SessionProvider>
                                         </LegalProvider>

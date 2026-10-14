@@ -4,10 +4,6 @@ export interface HttpResponse {
     response: Response | null;
 }
 
-export type ListResponse<T> = {
-    items: T[];
-};
-
 export const executeTimeout = async (
     url: URL,
     options: RequestInit,
