@@ -1,3 +1,7 @@
+import {
+    ConditionConnector as ProtoConnector,
+    ConditionType as ProtoConditionType,
+} from "@/api/gen/automations/v1/automations_pb";
 import { OperationType } from "@/types/DeviceTypes";
 
 export type ConditionType =
@@ -42,3 +46,29 @@ export const OperationToConditionMap: Record<OperationType, ConditionType> = {
     HexColor: "TextCondition",
     Options: "TextCondition",
 };
+
+export const connectorToString = (c: ProtoConnector): ConditionConnector | "" =>
+    c === ProtoConnector.AND ? "And" : c === ProtoConnector.OR ? "Or" : "";
+
+export const connectorFromString = (s: unknown): ProtoConnector =>
+    s === "And" ? ProtoConnector.AND : s === "Or" ? ProtoConnector.OR : ProtoConnector.UNSPECIFIED;
+
+export const conditionTypeToString = (
+    t: ProtoConditionType,
+): Exclude<ConditionType, "InvalidCondition"> | "" =>
+    t === ProtoConditionType.BOOLEAN
+        ? "BooleanCondition"
+        : t === ProtoConditionType.NUMBER
+          ? "NumberCondition"
+          : t === ProtoConditionType.TEXT
+            ? "TextCondition"
+            : "";
+
+export const conditionTypeFromString = (s: unknown): ProtoConditionType =>
+    s === "BooleanCondition"
+        ? ProtoConditionType.BOOLEAN
+        : s === "NumberCondition"
+          ? ProtoConditionType.NUMBER
+          : s === "TextCondition"
+            ? ProtoConditionType.TEXT
+            : ProtoConditionType.UNSPECIFIED;

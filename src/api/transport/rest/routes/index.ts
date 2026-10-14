@@ -1,6 +1,8 @@
 import type { RestRouteRegistryEntry } from "../RestRoute";
 import { authRoutes } from "./auth";
+import { automationsRoutes } from "./automations";
 import { dashboardsRoutes } from "./dashboards";
+import { dataSourcesRoutes } from "./dataSources";
 import { deviceSharingRoutes } from "./deviceSharing";
 import { devicesRoutes } from "./devices";
 import { homeSharingRoutes } from "./homeSharing";
@@ -11,7 +13,7 @@ import { roomsRoutes } from "./rooms";
 import { usersRoutes } from "./users";
 import { widgetsRoutes } from "./widgets";
 
-// Later PRs append automations, dataSources, account.
+// Later PRs append account.
 export const restRoutes: RestRouteRegistryEntry[] = [
     ...usersRoutes,
     ...legalRoutes,
@@ -24,4 +26,6 @@ export const restRoutes: RestRouteRegistryEntry[] = [
     ...dashboardsRoutes,
     ...operationsRoutes,
     ...widgetsRoutes,
+    ...automationsRoutes,
+    ...dataSourcesRoutes,
 ];
