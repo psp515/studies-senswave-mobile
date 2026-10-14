@@ -1,7 +1,7 @@
 import React, { createContext, FC, PropsWithChildren, useContext, useMemo, useRef } from "react";
 import { createApiClients, type ApiClients } from "@/api/clients";
 import { createInterceptors } from "@/api/interceptors";
-import { createTransport } from "@/api/transport/createTransport";
+import { resolveBaseUrl, resolveTransport } from "@/api/transport/createTransport";
 import type { TransportMode } from "@/api/transport/TransportMode";
 import { ApiError } from "@/api/errors";
 import { useConfiguration } from "./ConfigurationProvider";
@@ -9,7 +9,10 @@ import { useSession } from "./SessionProvider";
 import { useToast } from "./ToastProvider";
 
 export interface ApiContextValue extends ApiClients {
+    /** Effective mode; "Rest" when the requested mode is not implemented. */
     transportMode: TransportMode;
+    /** Mode requested by configuration, so a selector can warn when it differs. */
+    requestedTransportMode: TransportMode;
 }
 
 const ApiContext = createContext<ApiContextValue | null>(null);
@@ -36,8 +39,9 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
     toastRef.current = toast;
     const refreshFailureCountRef = useRef(0);
 
-    const baseUrl = configuration.getBaseUrl().origin;
-    const transportMode = configuration.transportMode;
+    // Never throw during render: a missing/invalid URL yields an Unavailable transport.
+    const baseUrl = resolveBaseUrl(() => configuration.getBaseUrl()) ?? "";
+    const requestedTransportMode = configuration.transportMode;
 
     const value = useMemo<ApiContextValue>(() => {
         const interceptors = createInterceptors({
@@ -59,16 +63,24 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
                 }
             },
             onForbidden: (error) => {
-                const text = ApiError.is(error) ? error.firstDescription() : error.rawMessage;
+                const text = ApiError.is(error) ? error.errors[0]?.description?.trim() : undefined;
                 toastRef.current.error(text || "Access denied.");
             },
         });
 
-        const transport = createTransport({ mode: transportMode, baseUrl, interceptors });
-        console.info(`[Api] Transport ${transportMode} → ${baseUrl}`);
+        const { transport, mode } = resolveTransport({
+            mode: requestedTransportMode,
+            baseUrl: baseUrl || null,
+            interceptors,
+        });
+        console.info(`[Api] Transport ${mode} → ${baseUrl || "(unconfigured)"}`);
 
-        return { ...createApiClients(transport), transportMode };
-    }, [baseUrl, transportMode]);
+        return {
+            ...createApiClients(transport),
+            transportMode: mode,
+            requestedTransportMode,
+        };
+    }, [baseUrl, requestedTransportMode]);
 
     return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 };
