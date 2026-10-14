@@ -1,7 +1,16 @@
-import React, { createContext, FC, PropsWithChildren, useContext, useMemo, useRef } from "react";
+import React, {
+    createContext,
+    FC,
+    PropsWithChildren,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+} from "react";
 import { createApiClients, type ApiClients } from "@/api/clients";
 import { createInterceptors } from "@/api/interceptors";
 import { resolveBaseUrl, resolveTransport } from "@/api/transport/createTransport";
+import { shouldLogoutOnChange } from "@/api/transport/changeDetection";
 import type { TransportMode } from "@/api/transport/TransportMode";
 import { ApiError } from "@/api/errors";
 import { createLiveUpdateSource } from "@/api/liveUpdates/createLiveUpdateSource";
@@ -52,6 +61,20 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
     } catch (e) {
         console.error("[Api] SignalR URL is not configured or invalid.", e);
     }
+
+    // The session belongs to one backend + transport: end it when either changes (not on mount).
+    const prevRef = useRef<{ baseUrl: string; mode: TransportMode } | null>(null);
+    useEffect(() => {
+        const next = { baseUrl, mode: requestedTransportMode };
+        if (
+            shouldLogoutOnChange(prevRef.current, next) &&
+            sessionRef.current.session.authenticated
+        ) {
+            console.info("[Api] Transport changed, logging out.");
+            sessionRef.current.logout();
+        }
+        prevRef.current = next;
+    }, [baseUrl, requestedTransportMode]);
 
     const value = useMemo<ApiContextValue>(() => {
         const interceptors = createInterceptors({

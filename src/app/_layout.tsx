@@ -1,3 +1,4 @@
+import "@/api/polyfills";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
 import { SessionProvider } from "@/contexts/SessionProvider";

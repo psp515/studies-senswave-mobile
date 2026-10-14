@@ -49,7 +49,7 @@ Source: `E:\Projects\studies-senswave-backend` (Senswave.sln).
 |---|---|
 | Native gRPC on mobile | Android only, via a local Expo module wrapping `grpc-okhttp`. No iOS support. |
 | gRPC-Web wire format | Binary proto (`application/grpc-web+proto`). |
-| Mode selection | `EXPO_PUBLIC_TRANSPORT_MODE` env default; runtime override only when `EXPO_PUBLIC_ENVIRONMENT=Development` (same rule as URL override). |
+| Mode selection | `EXPO_PUBLIC_TRANSPORT_MODE` env default; runtime override only when `EXPO_PUBLIC_ENVIRONMENT=Development` (same rule as URL override). Session is logged out when URL or mode changes (logout on change — implemented in PR 8). |
 | Scope | One spec covering data endpoints, auth, legal, live updates. Phased PR stack. |
 | Measurement | OpenTelemetry client spans with request/response byte attributes, W3C propagation, OTLP/HTTP export, opt-in by env var. |
 | Approach | Generated Connect clients as the single app API; transport swapped underneath (approach 2). |

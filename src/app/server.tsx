@@ -3,6 +3,10 @@ import { useConfiguration } from "@/contexts/ConfigurationProvider";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { View } from "react-native";
+import { useApi } from "@/contexts/ApiProvider";
+import HorizontalSelector from "@/components/common/HorizontalSelector";
+import Text from "@/components/common/Text";
+import { parseTransportMode, TransportModes } from "@/api/transport/TransportMode";
 import Input from "@/components/common/Input";
 import Button from "@/components/common/Button";
 import { useToast } from "@/contexts/ToastProvider";
@@ -11,6 +15,7 @@ const Server: React.FC = () => {
     const router = useRouter();
     const toast = useToast();
     const configuration = useConfiguration();
+    const api = useApi();
 
     const [url, setUrl] = React.useState<string>("");
 
@@ -27,6 +32,7 @@ const Server: React.FC = () => {
 
     const resetToDefault = () => {
         configuration.overrideUrl("");
+        configuration.overrideTransportMode(null);
 
         const baseUrl = configuration.getBaseUrl().toString();
         setUrl(baseUrl);
@@ -70,6 +76,24 @@ const Server: React.FC = () => {
                         error={""}
                         placeholder={""}
                     />
+
+                    {configuration.isDevelopment() && (
+                        <>
+                            <HorizontalSelector
+                                options={[...TransportModes]}
+                                selected={configuration.transportMode}
+                                onSelect={(o) =>
+                                    configuration.overrideTransportMode(parseTransportMode(o))
+                                }
+                                margin={{ top: 10, right: 0, bottom: 10, left: 0 }}
+                            />
+                            {api.requestedTransportMode !== api.transportMode && (
+                                <Text size="small">
+                                    {`${api.requestedTransportMode} is not available on this build, using ${api.transportMode}.`}
+                                </Text>
+                            )}
+                        </>
+                    )}
 
                     <Button
                         name={"Save"}
