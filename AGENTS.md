@@ -168,9 +168,8 @@ Automation has many `conditions` and many `results`. All conditions joined by on
 ```ts
 type MqttVersion = "MqttV5" | "MqttV311" | "MqttV310";
 
-type DataSourceDto = { id, name, url, clientName, port, mqttVersion, tls };
+type DataSourceDto = { id, name, url, clientName, port, protocolVersion: MqttVersion, useTls };
 type SubscriptionDto = { id, topic };                // MQTT topic subscription on a broker
-type CreateSubscriptionRequest = { topic };
 ```
 
 DataSources are MQTT brokers. Each has subscriptions (MQTT topics). Topic data is parsed using JSON path selectors (configured per Operation) to extract values.
@@ -219,7 +218,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - **Never** call `fetch` directly outside `httpClient.tsx` and `src/api/transport/rest/`
 - Callers must consume api errors only through `call()` / `callSimple()` / `toApiError()`; never inspect a raw caught error.
 - REST path params must go through `seg()`; list responses through `items()`.
-- API path prefix: `/api/v1/...` (built by `ConfigurationProvider.getApiUrl`)
+- API path prefix: `/api/v1/...` — added by the REST transport (`createRestTransport`); `ConfigurationProvider.getApiUrl` is used only by the two remaining raw calls (version check, Google login)
 
 ### Key API endpoints by feature
 

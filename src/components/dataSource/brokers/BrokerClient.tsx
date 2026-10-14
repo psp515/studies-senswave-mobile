@@ -36,27 +36,22 @@ function ClientsDetailsView() {
         const loadDetails = async () => {
             setLoading(true);
 
-            try {
-                const result = await call(
-                    () => api.dataSources.getClientState({ brokerId: id }),
-                    "Failed to load broker client details.",
-                );
+            const result = await call(
+                () => api.dataSources.getClientState({ brokerId: id }),
+                "Failed to load broker client details.",
+            );
 
-                if (result.isSuccess) {
-                    setClient({
-                        connectionStatus: result.data!
-                            .connectionStatus as ClientDto["connectionStatus"],
-                        latestSessionId: result.data!.latestSessionId,
-                    });
-                } else {
-                    console.error("Failed to load broker details.");
-                    toast.apiError(result);
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
+            if (result.isSuccess) {
+                setClient({
+                    connectionStatus: result.data!
+                        .connectionStatus as ClientDto["connectionStatus"],
+                    latestSessionId: result.data!.latestSessionId,
+                });
+            } else {
+                console.error("Failed to load broker details.");
+                toast.apiError(result);
             }
+            setLoading(false);
         };
 
         if (refresh > 0) {
@@ -80,27 +75,22 @@ function ClientsDetailsView() {
             return;
         }
 
-        try {
-            setLoading(true);
+        setLoading(true);
 
-            const result = await callSimple(
-                () => api.dataSources.stopClient({ brokerId: id }),
-                "Failed to stop broker client.",
-            );
-            if (result.isSuccess) {
-                console.info("[Client Details] Stopped broker client.");
-                toast.success("Broker client stopped successfully.");
-                await homes.refreshCurrent();
-            } else {
-                console.error("[Client Details] Failed to stop broker client.");
-                toast.apiError(result);
-            }
-        } catch (error) {
-            console.error("Failed to stop broker client", error);
-        } finally {
-            setRefresh((prev) => prev + 1);
-            setLoading(false);
+        const result = await callSimple(
+            () => api.dataSources.stopClient({ brokerId: id }),
+            "Failed to stop broker client.",
+        );
+        if (result.isSuccess) {
+            console.info("[Client Details] Stopped broker client.");
+            toast.success("Broker client stopped successfully.");
+            await homes.refreshCurrent();
+        } else {
+            console.error("[Client Details] Failed to stop broker client.");
+            toast.apiError(result);
         }
+        setRefresh((prev) => prev + 1);
+        setLoading(false);
     };
 
     const onStart = async () => {
@@ -126,26 +116,21 @@ function ClientsDetailsView() {
             return;
         }
 
-        try {
-            setLoading(true);
+        setLoading(true);
 
-            const result = await callSimple(
-                () => api.dataSources.restartClient({ brokerId: id }),
-                "Failed to restart broker client.",
-            );
-            if (result.isSuccess) {
-                console.info("[Client Details] Restart broker client.");
-                toast.success("Broker client restarted successfully.");
-                await homes.refreshCurrent();
-            } else {
-                toast.apiError(result);
-            }
-        } catch (error) {
-            console.error("Failed to restart broker client", error);
-        } finally {
-            setRefresh((prev) => prev + 1);
-            setLoading(false);
+        const result = await callSimple(
+            () => api.dataSources.restartClient({ brokerId: id }),
+            "Failed to restart broker client.",
+        );
+        if (result.isSuccess) {
+            console.info("[Client Details] Restart broker client.");
+            toast.success("Broker client restarted successfully.");
+            await homes.refreshCurrent();
+        } else {
+            toast.apiError(result);
         }
+        setRefresh((prev) => prev + 1);
+        setLoading(false);
     };
 
     return (

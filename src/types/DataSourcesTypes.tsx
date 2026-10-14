@@ -17,10 +17,6 @@ export type SubscriptionDto = {
     topic: string;
 };
 
-export type CreateSubscriptionRequest = {
-    topic: string;
-};
-
 export const toDataSourceDto = (r: GetBrokerResponse): DataSourceDto => ({
     id: r.id,
     name: r.name,

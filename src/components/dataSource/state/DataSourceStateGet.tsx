@@ -22,17 +22,12 @@ function BrokerClientStateGet({ id }: BrokerClientStateGetProperties) {
     const fetchBrokerClientState = async () => {
         setLoading(true);
 
-        try {
-            const result = await call(() => api.dataSources.getClientState({ brokerId: id }));
+        const result = await call(() => api.dataSources.getClientState({ brokerId: id }));
 
-            if (result.isSuccess) {
-                setState(result.data!.connectionStatus);
-            } else {
-                toast.apiError(result);
-            }
-        } catch (error) {
-            toast.error("Failed to fetch broker client state.");
-            console.error("Failed to fetch broker client state", error);
+        if (result.isSuccess) {
+            setState(result.data!.connectionStatus);
+        } else {
+            toast.apiError(result);
         }
 
         setLoading(false);
