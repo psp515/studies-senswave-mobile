@@ -1,6 +1,8 @@
 import { Code, ConnectError, type Interceptor, type Transport } from "@connectrpc/connect";
 import { restRoutes } from "./rest/routes";
 import { createRestTransport } from "./rest/createRestTransport";
+import { createSenswaveGrpcWebTransport } from "./grpcWeb/createGrpcWebTransport";
+import { streamingFetch } from "@/api/polyfills";
 import type { TransportMode } from "./TransportMode";
 
 export interface CreateTransportOptions {
@@ -18,12 +20,17 @@ export const createTransport = (options: CreateTransportOptions): Transport => {
             return createRestTransport({
                 baseUrl: options.baseUrl,
                 routes: restRoutes,
-                fetch: options.fetch,
+                fetch: options.fetch ?? streamingFetch,
                 interceptors: options.interceptors,
                 defaultTimeoutMs: options.defaultTimeoutMs,
             });
         case "GrpcWeb":
-            throw new Error("Transport mode GrpcWeb is not implemented yet.");
+            return createSenswaveGrpcWebTransport({
+                baseUrl: options.baseUrl,
+                fetch: options.fetch ?? streamingFetch,
+                interceptors: options.interceptors,
+                defaultTimeoutMs: options.defaultTimeoutMs,
+            });
         case "Grpc":
             throw new Error("Transport mode Grpc is not implemented yet.");
     }

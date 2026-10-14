@@ -10,12 +10,9 @@ describe("createApiClients", () => {
         expect(typeof api.liveUpdates.subscribe).toBe("function");
     });
 
-    it("createTransport rejects unimplemented modes", () => {
+    it("createTransport rejects the unimplemented Grpc mode", () => {
         expect(() =>
             createTransport({ mode: "Grpc", baseUrl: "https://h", interceptors: [] }),
         ).toThrow(/Grpc/);
-        expect(() =>
-            createTransport({ mode: "GrpcWeb", baseUrl: "https://h", interceptors: [] }),
-        ).toThrow(/GrpcWeb/);
     });
 });

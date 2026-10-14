@@ -16,29 +16,32 @@ describe("resolveTransport", () => {
         expect(console.error).not.toHaveBeenCalled();
     });
 
-    it.each(["Grpc", "GrpcWeb"] as const)(
-        "falls back to Rest when %s is not implemented",
-        async (mode) => {
-            const fetchMock = jest.fn(
-                async () =>
-                    new Response(JSON.stringify({ email: "a@b" }), {
-                        status: 200,
-                        headers: { "Content-Type": "application/json" },
-                    }),
-            );
-            const r = resolveTransport({
-                mode,
-                baseUrl: "https://h",
-                interceptors: [],
-                fetch: fetchMock as unknown as typeof fetch,
-            });
-            expect(r.mode).toBe("Rest");
-            expect(console.error).toHaveBeenCalledTimes(1);
-            const user = await createClient(UsersService, r.transport).getUser({});
-            expect(user.email).toBe("a@b");
-            expect(fetchMock).toHaveBeenCalledTimes(1);
-        },
-    );
+    it.each(["Grpc"] as const)("falls back to Rest when %s is not implemented", async (mode) => {
+        const fetchMock = jest.fn(
+            async () =>
+                new Response(JSON.stringify({ email: "a@b" }), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" },
+                }),
+        );
+        const r = resolveTransport({
+            mode,
+            baseUrl: "https://h",
+            interceptors: [],
+            fetch: fetchMock as unknown as typeof fetch,
+        });
+        expect(r.mode).toBe("Rest");
+        expect(console.error).toHaveBeenCalledTimes(1);
+        const user = await createClient(UsersService, r.transport).getUser({});
+        expect(user.email).toBe("a@b");
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("builds the GrpcWeb transport without falling back", () => {
+        const r = resolveTransport({ mode: "GrpcWeb", baseUrl: "https://h", interceptors: [] });
+        expect(r.mode).toBe("GrpcWeb");
+        expect(console.error).not.toHaveBeenCalled();
+    });
 
     it("uses the unavailable transport when the base URL is missing", async () => {
         const r = resolveTransport({ mode: "Rest", baseUrl: null, interceptors: [] });
