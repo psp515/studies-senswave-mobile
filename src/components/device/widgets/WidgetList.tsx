@@ -3,9 +3,10 @@ import { View, RefreshControl, SectionList } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useToast } from "@/contexts/ToastProvider";
 import Loading from "@/components/common/Loading";
-import { ListResponse } from "@/utils/httpClient";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
+import { toOperationGroups } from "@/types/DeviceTypes";
 import Text from "@/components/common/Text";
 import WidgetListTile from "@/components/device/widgets/WidgetListTile";
 import ImageButton from "@/components/common/ImageButton";
@@ -27,7 +28,7 @@ interface WidgetListProps {
 }
 
 export default function WidgetList({ overrideOnClick, hideAddButtons = false }: WidgetListProps) {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const device = useDevice();
     const toast = useToast();
     const router = useRouter();
@@ -38,16 +39,16 @@ export default function WidgetList({ overrideOnClick, hideAddButtons = false }: 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         const refresh = async () => {
-            const result = await httpClient.get(
-                `v1/devices/widgets/display?deviceId=${device.deviceId}`,
+            const result = await call(
+                () => api.widgets.displayWidgets({ deviceId: device.deviceId }),
+                "Failed to refresh operations.",
             );
 
-            if (result.isSuccess) {
-                const data = (await result.response!.json()) as ListResponse<OperationGroup>;
-                setGroups(data.items);
+            if (result.isSuccess && result.data) {
+                setGroups(toOperationGroups(result.data));
                 setRefreshing(false);
             } else {
-                toast.error("Failed to refresh operations.");
+                toast.apiError(result);
                 setRefreshing(false);
             }
         };
@@ -58,20 +59,20 @@ export default function WidgetList({ overrideOnClick, hideAddButtons = false }: 
     }, []);
 
     const getOperations = async () => {
-        const result = await httpClient.get(
-            `v1/devices/widgets/display?deviceId=${device.deviceId}`,
+        const result = await call(
+            () => api.widgets.displayWidgets({ deviceId: device.deviceId }),
+            "Failed to load operations.",
         );
 
-        if (result.isSuccess) {
-            const data = (await result.response!.json()) as ListResponse<OperationGroup>;
-            setGroups(data.items);
+        if (result.isSuccess && result.data) {
+            setGroups(toOperationGroups(result.data));
             setLoading(false);
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setGroups([]);
             setLoading(false);
             toast.info("Create some operations!");
         } else {
-            toast.error("Failed to load operations.");
+            toast.apiError(result);
             setLoading(false);
         }
     };

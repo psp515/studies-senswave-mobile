@@ -3,7 +3,9 @@ import { CalculatedWidget, PositionedWidget } from "../../dashboards/DashboardVi
 import { LayoutChangeEvent, Pressable, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { toProtoValue } from "@/api/json";
 import { useToast } from "@/contexts/ToastProvider";
 import Text from "@/components/common/Text";
 import Icon from "@/components/common/Icon";
@@ -84,7 +86,7 @@ const RadioWidget: React.FC<RadioWidgetProps> = ({
 }) => {
     const toast = useToast();
     const device = useDevice();
-    const httpClient = useHttpClient();
+    const api = useApi();
 
     const [loading, setLoading] = useState(false);
 
@@ -138,15 +140,18 @@ const RadioWidget: React.FC<RadioWidgetProps> = ({
         setLoading(true);
 
         try {
-            const result = await httpClient.post(`v1/devices/widgets/${widget.id}/action`, {
-                value: selectedOption.optionName,
-            });
+            const result = await callSimple(() =>
+                api.widgets.action({
+                    widgetId: widget.id,
+                    value: toProtoValue(selectedOption.optionName),
+                }),
+            );
 
             if (result.isSuccess) {
                 console.info("[RadioWidget] Action sent successfully.");
                 setSelectedOption(selectedOption);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("[RadioWidget] Error changing option:", error);

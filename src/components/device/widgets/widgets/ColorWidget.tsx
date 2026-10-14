@@ -10,7 +10,9 @@ import ColorPicker, {
 } from "reanimated-color-picker";
 import { shadowStyles } from "@/styles/shadowStyles";
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { toProtoValue } from "@/api/json";
 import { useTheme } from "@/contexts/ThemeProvider";
 
 interface ColorWidgetProps {
@@ -22,7 +24,7 @@ interface ColorWidgetProps {
 const ColorWidget: React.FC<ColorWidgetProps> = ({ widget, operations, disabled }) => {
     const theme = useTheme();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
 
     const [showModal, setShowModal] = useState(false);
 
@@ -58,15 +60,15 @@ const ColorWidget: React.FC<ColorWidgetProps> = ({ widget, operations, disabled 
 
         setLoading(true);
 
-        const result = await httpClient.post(`v1/devices/widgets/${widget.id}/action`, {
-            value: newColor.hex,
-        });
+        const result = await callSimple(() =>
+            api.widgets.action({ widgetId: widget.id, value: toProtoValue(newColor.hex) }),
+        );
 
         if (result.isSuccess) {
             console.info("[Button Widget] Action sent successfully.");
             setColor(newColor.hex);
         } else {
-            toast.httpError(result);
+            toast.apiError(result);
         }
 
         setLoading(false);

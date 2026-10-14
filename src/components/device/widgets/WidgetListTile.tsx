@@ -5,7 +5,8 @@ import { useTheme } from "@/contexts/ThemeProvider";
 import Text from "../../common/Text";
 import { shadowStyles } from "@/styles/shadowStyles";
 import ImageButton from "@/components/common/ImageButton";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 
 interface WidgetListTileProps {
@@ -29,7 +30,7 @@ const WidgetListTile: FC<WidgetListTileProps> = ({
     const router = useRouter();
     const theme = useTheme();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
 
     const [loading, setLoading] = useState<boolean>(false);
     const [enabledState, setEnabledState] = useState(enabled);
@@ -60,9 +61,9 @@ const WidgetListTile: FC<WidgetListTileProps> = ({
         setLoading(true);
 
         try {
-            const result = await httpClient.put(`v1/devices/widgets/${id}/state`, {
-                enabled: !enabledState,
-            });
+            const result = await callSimple(() =>
+                api.widgets.state({ widgetId: id, enabled: !enabledState }),
+            );
 
             if (result.isSuccess) {
                 if (enabledState) {
@@ -73,7 +74,7 @@ const WidgetListTile: FC<WidgetListTileProps> = ({
 
                 setEnabledState(!enabledState);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("[WidgetListTile] Error while clicking state:", error);

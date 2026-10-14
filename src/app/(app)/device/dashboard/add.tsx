@@ -1,7 +1,8 @@
 import Button from "@/components/common/Button";
 import DashboardForm, { DashboardFormHandle } from "@/components/device/dashboards/DashboardForm";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { KeyboardStickyView } from "react-native-keyboard-controller";
 function Add() {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const dashboards = useDevice();
     const { deviceId } = useLocalSearchParams();
     const formRef = useRef<DashboardFormHandle>(null);
@@ -19,16 +20,27 @@ function Add() {
     const [isFormValid, setIsFormValid] = useState(false);
 
     const addClicked = async (values: any) => {
+        if (typeof deviceId !== "string") return;
         setLoading(true);
 
-        const response = await httpClient.post("v1/devices/dashboards", values);
+        const result = await callSimple(() =>
+            api.dashboards.createDashboard({
+                deviceId,
+                name: values.name,
+                icon: values.icon,
+                configuration: {
+                    rows: values.configuration.rows,
+                    columns: values.configuration.columns,
+                },
+            }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Dashboard added successfully.");
             await dashboards.refresh(true);
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);

@@ -3,7 +3,9 @@ import { Pressable } from "react-native";
 import Text from "@/components/common/Text";
 import Loading from "@/components/common/Loading";
 import { useTheme } from "@/contexts/ThemeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { toProtoValue } from "@/api/json";
 import { CalculatedWidget } from "../../dashboards/DashboardView";
 import { useToast } from "@/contexts/ToastProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
@@ -15,7 +17,7 @@ interface ButtonWidgetProps {
 }
 
 export default function ButtonWidget({ widget, operations, disabled }: ButtonWidgetProps) {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const theme = useTheme();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
@@ -28,14 +30,14 @@ export default function ButtonWidget({ widget, operations, disabled }: ButtonWid
 
         setLoading(true);
 
-        const result = await httpClient.post(`v1/devices/widgets/${widget.id}/action`, {
-            value: "",
-        });
+        const result = await callSimple(() =>
+            api.widgets.action({ widgetId: widget.id, value: toProtoValue("") }),
+        );
 
         if (result.isSuccess) {
             console.info("[Button Widget] Action sent successfully.");
         } else {
-            toast.httpError(result);
+            toast.apiError(result);
         }
 
         setLoading(false);

@@ -3,7 +3,9 @@ import { Pressable, View } from "react-native";
 import Slider from "@/components/common/Slider";
 import { CalculatedWidget } from "../../dashboards/DashboardView";
 import Text from "@/components/common/Text";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { toProtoValue } from "@/api/json";
 import { useToast } from "@/contexts/ToastProvider";
 
 interface SliderWidgetProps {
@@ -20,7 +22,7 @@ const SliderWidget: React.FC<SliderWidgetProps> = ({ operations, widget, disable
     );
 
     const [loading, setLoading] = React.useState(false);
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
 
     const handleValueChange = async (val: number) => {
@@ -35,14 +37,14 @@ const SliderWidget: React.FC<SliderWidgetProps> = ({ operations, widget, disable
 
         setLoading(true);
 
-        const result = await httpClient.post(`v1/devices/widgets/${widget.id}/action`, {
-            value: val,
-        });
+        const result = await callSimple(() =>
+            api.widgets.action({ widgetId: widget.id, value: toProtoValue(val) }),
+        );
 
         if (result.isSuccess) {
             console.info("[Button Widget] Action sent successfully.");
         } else {
-            toast.httpError(result);
+            toast.apiError(result);
         }
 
         setLoading(false);

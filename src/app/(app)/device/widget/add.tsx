@@ -5,13 +5,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import WidgetForm, { WidgetFormHandle } from "@/components/device/widgets/WidgetForm";
 import { useWidgetDetails, WidgetDetailsProvider } from "@/contexts/custom/WidgetDetailsProvider";
 
 function InternalAdd() {
     const widgetDetails = useWidgetDetails();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
     const { operationId } = useLocalSearchParams<{ operationId: string }>();
@@ -21,13 +22,20 @@ function InternalAdd() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.post("v1/devices/widgets", values);
+        const result = await callSimple(() =>
+            api.widgets.createWidget({
+                operationId: values.operationId,
+                name: values.name,
+                type: values.type,
+                configuration: values.configuration,
+            }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Widget added successfully.");
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);

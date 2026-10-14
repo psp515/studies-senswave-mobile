@@ -3,7 +3,8 @@ import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
 import WidgetForm from "@/components/device/widgets/WidgetForm";
 import { useWidgetDetails, WidgetDetailsProvider } from "@/contexts/custom/WidgetDetailsProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -38,19 +39,23 @@ function InternalDetails() {
 function Details() {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const { widgetId } = useLocalSearchParams<{ widgetId: string }>();
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const deleteWidget = async () => {
-        const response = await httpClient.delete(`v1/devices/widgets/${widgetId}`);
+        if (!widgetId) return;
 
-        if (response.isSuccess) {
+        const result = await callSimple(
+            () => api.widgets.deleteWidget({ widgetId }),
+            "Failed to remove widget.",
+        );
+
+        if (result.isSuccess) {
             toast.success("Widget removed successfully.");
             router.back();
         } else {
-            toast.error("Failed to remove widget.");
-            console.error("Failed to remove widget.");
+            toast.apiError(result);
         }
     };
 

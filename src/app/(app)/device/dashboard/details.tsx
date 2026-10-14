@@ -4,7 +4,9 @@ import Loading from "@/components/common/Loading";
 import DashboardForm, { DashboardFormHandle } from "@/components/device/dashboards/DashboardForm";
 import { DashboardDto } from "@/components/device/dashboards/DashboardView";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple } from "@/api/call";
+import { structToJson } from "@/api/json";
 import { useToast } from "@/contexts/ToastProvider";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -13,7 +15,7 @@ import { View } from "react-native";
 function Details() {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const dashboards = useDevice();
     const [loading, setLoading] = useState(false);
     const [dashboard, setDashboard] = useState<DashboardDto | undefined>(undefined);
@@ -21,34 +23,42 @@ function Details() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const formRef = useRef<DashboardFormHandle>(null);
     const editClicked = async (values: any) => {
-        const response = await httpClient.patch(
-            `v1/devices/dashboards/${dashboards.currentDashboardId}`,
-            values,
+        const dashboardId = dashboards.currentDashboardId;
+        if (!dashboardId) return;
+
+        const result = await callSimple(
+            () =>
+                api.dashboards.updateDashboard({
+                    dashboardId,
+                    name: values.name ?? "",
+                    icon: values.icon ?? "",
+                }),
+            "Failed to update dashboard.",
         );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Dashboard updated successfully.");
             await dashboards.refresh(true);
         } else {
-            toast.error("Failed to update dashboard.");
-            const data = await response.response?.text();
-            console.error("[Dashboard Edit] Error: " + data);
+            toast.apiError(result);
         }
     };
 
     const deleteDashboard = async () => {
-        const response = await httpClient.delete(
-            `v1/devices/dashboards/${dashboards.currentDashboardId}`,
+        const dashboardId = dashboards.currentDashboardId;
+        if (!dashboardId) return;
+
+        const result = await callSimple(
+            () => api.dashboards.deleteDashboard({ dashboardId }),
+            "Failed to remove dashboard.",
         );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Dashboard removed successfully.");
             await dashboards.refresh(true);
             router.back();
         } else {
-            toast.error("Failed to remove dashboard.");
-            const data = await response.response?.text();
-            console.error("[Dashboard Delete] Error: " + data);
+            toast.apiError(result);
         }
     };
 
@@ -58,19 +68,26 @@ function Details() {
 
     useEffect(() => {
         const getDashboard = async () => {
+            const dashboardId = dashboards.currentDashboardId;
+            if (!dashboardId) return;
             setLoading(true);
 
-            const response = await httpClient.get(
-                "v1/devices/dashboards/" + dashboards.currentDashboardId,
+            const result = await call(
+                () => api.dashboards.getDashboard({ dashboardId }),
+                "Failed to load dashboard details.",
             );
 
-            if (response.isSuccess) {
-                const content = (await response.response?.json()) as DashboardDto;
-                setDashboard(content);
+            if (result.isSuccess && result.data) {
+                const d = result.data;
+                setDashboard({
+                    id: d.id,
+                    name: d.name,
+                    icon: d.icon,
+                    type: d.type as DashboardDto["type"],
+                    configuration: structToJson(d.configuration),
+                });
             } else {
-                toast.error("Failed to load dashboard details.");
-                const content = await response.response?.text();
-                console.error("[Dashboard Details] Error: " + content);
+                toast.apiError(result);
             }
 
             setLoading(false);

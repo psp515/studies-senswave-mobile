@@ -3,7 +3,9 @@ import { CalculatedWidget } from "../../dashboards/DashboardView";
 import { LayoutChangeEvent, Pressable, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { toProtoValue } from "@/api/json";
 import { useToast } from "@/contexts/ToastProvider";
 import Text from "@/components/common/Text";
 import Icon from "@/components/common/Icon";
@@ -18,7 +20,7 @@ interface SwitchWidgetProps {
 const SwitchWidget: React.FC<SwitchWidgetProps> = ({ operations, widget, disabled }) => {
     const toast = useToast();
     const theme = useTheme();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const [loading, setLoading] = useState(false);
     const [isChecked, setIsChecked] = useState(widget?.configuration?.runtime?.value ?? false);
     const [containerHeight, setContainerHeight] = useState(0);
@@ -40,15 +42,15 @@ const SwitchWidget: React.FC<SwitchWidgetProps> = ({ operations, widget, disable
         try {
             const newValue = !isChecked;
 
-            const result = await httpClient.post(`v1/devices/widgets/${widget.id}/action`, {
-                value: newValue,
-            });
+            const result = await callSimple(() =>
+                api.widgets.action({ widgetId: widget.id, value: toProtoValue(newValue) }),
+            );
 
             if (result.isSuccess) {
                 console.info("[Button Widget] Action sent successfully.");
                 setIsChecked(newValue);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("[SwitchWidget] Error toggling switch:", error);

@@ -1,7 +1,8 @@
 import ImageButton from "@/components/common/ImageButton";
 import WidgetList from "@/components/device/widgets/WidgetList";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
@@ -9,7 +10,7 @@ import { View } from "react-native";
 
 const PlaceWidget = () => {
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const device = useDevice();
     const toast = useToast();
     const { row, column, rowSpan, columnSpan } = useLocalSearchParams();
@@ -27,18 +28,22 @@ const PlaceWidget = () => {
 
         console.info("[PlaceWidget] Placing widget with values: ", values);
 
-        const response = await httpClient.put(
-            `v1/devices/dashboards/${device.currentDashboardId}/widgets`,
-            values,
+        const dashboardId = device.currentDashboardId;
+        if (!dashboardId) {
+            router.back();
+            return;
+        }
+
+        const result = await callSimple(
+            () => api.dashboards.setWidgetOnDashboard({ dashboardId, ...values }),
+            "Failed to place widget: area is overlapping or out of bounds.",
         );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Widget placed on dashboard successfully.");
             device.refresh(true);
         } else {
-            toast.error("Failed to place widget: area is overlapping or out of bounds.");
-            const data = await response.response?.text();
-            console.error("[Dashboard Edit] Error: " + data);
+            toast.apiError(result);
         }
 
         router.back();

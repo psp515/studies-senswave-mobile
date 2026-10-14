@@ -1,7 +1,8 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import React, { FC, useState } from "react";
 import { View } from "react-native";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
 import { CalculatedWidget, PositionedWidget } from "../dashboards/DashboardView";
@@ -71,21 +72,27 @@ export default function WidgetView({
     disabled = false,
 }: WidgetViewProps) {
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const device = useDevice();
     const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
 
     const unlinkWidgetFromDashboardRequest = async () => {
         try {
-            const result = await httpClient.delete(
-                `v1/devices/dashboards/${device.currentDashboardId}/widgets/${calculatedWidget.id}`,
+            const dashboardId = device.currentDashboardId;
+            if (!dashboardId) return;
+
+            const result = await callSimple(() =>
+                api.dashboards.deleteDashboardWidget({
+                    dashboardId,
+                    widgetId: calculatedWidget.id,
+                }),
             );
 
             if (result.isSuccess) {
                 toast.success("Widget removed successfully");
                 device.refresh(true);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(error);
