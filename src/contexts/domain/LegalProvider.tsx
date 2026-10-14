@@ -1,5 +1,10 @@
-import { useConfiguration } from "@/contexts/ConfigurationProvider";
-import { executeTimeout } from "@/utils/httpClient";
+import { call } from "@/api/call";
+import type {
+    GetPrivacyPolicyResponse,
+    GetTermsAndConditionsResponse,
+} from "@/api/gen/users/v1/legal_pb";
+import { useAnonymousApi } from "@/contexts/AnonymousApiProvider";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Result } from "@/utils/result";
 import { createContext, FC, PropsWithChildren, useContext } from "react";
 
@@ -21,63 +26,42 @@ const LegalContext = createContext<LegalContextProps>({
     getPrivacy: async () => Result.failure<LegalDocument>("Not implemented"),
 });
 
+const ServiceUnavailableText = "Service unavailable";
+
+const toLegalDocument = (
+    r: GetPrivacyPolicyResponse | GetTermsAndConditionsResponse,
+): LegalDocument => ({
+    id: r.id,
+    version: r.version,
+    content: r.content,
+    summary: r.summary,
+    createdAtUtc: r.createdAtUtc ? timestampDate(r.createdAtUtc).toISOString() : "",
+});
+
 export const LegalProvider: FC<PropsWithChildren> = ({ children }) => {
-    const configuration = useConfiguration();
+    const api = useAnonymousApi();
 
     const getTerms = async (): Promise<Result<LegalDocument>> => {
-        const url = configuration.getApiUrl("v1/legal/terms");
-
-        const options: RequestInit = {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                accept: "application/json",
-            },
-        };
-
-        const result = await executeTimeout(url, options);
-
+        const result = await call(
+            () => api.legal.getTermsAndConditions({}),
+            ServiceUnavailableText,
+        );
         if (result.isSuccess) {
             console.info("[LegalProvider] Successfully fetched Terms and Conditions.");
-            const data: LegalDocument = await result.response?.json();
-            return Result.success<LegalDocument>(data);
+            return Result.success(toLegalDocument(result.data!));
         }
-
-        if (result.statusCode === 500) {
-            console.error("[LegalProvider] Server unavailable while fetching Terms.");
-            return Result.failure<LegalDocument>("Service unavailable");
-        }
-
         console.error("[LegalProvider] Failed to fetch Terms and Conditions.");
-        return Result.failure<LegalDocument>("Service unavailable");
+        return Result.failure<LegalDocument>(ServiceUnavailableText, result.error);
     };
 
     const getPrivacy = async (): Promise<Result<LegalDocument>> => {
-        const url = configuration.getApiUrl("v1/legal/privacy");
-
-        const options: RequestInit = {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                accept: "application/json",
-            },
-        };
-
-        const result = await executeTimeout(url, options);
-
+        const result = await call(() => api.legal.getPrivacyPolicy({}), ServiceUnavailableText);
         if (result.isSuccess) {
             console.info("[LegalProvider] Successfully fetched Privacy Policy.");
-            const data: LegalDocument = await result.response?.json();
-            return Result.success<LegalDocument>(data);
+            return Result.success(toLegalDocument(result.data!));
         }
-
-        if (result.statusCode === 500) {
-            console.error("[LegalProvider] Server unavailable while fetching Privacy Policy.");
-            return Result.failure<LegalDocument>("Service unavailable");
-        }
-
         console.error("[LegalProvider] Failed to fetch Privacy Policy.");
-        return Result.failure<LegalDocument>("Service unavailable");
+        return Result.failure<LegalDocument>(ServiceUnavailableText, result.error);
     };
 
     console.info("[LegalProvider] Initialized.");
