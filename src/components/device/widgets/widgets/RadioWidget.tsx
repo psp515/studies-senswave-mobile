@@ -105,9 +105,12 @@ const RadioWidget: React.FC<RadioWidgetProps> = ({
 
     useEffect(() => {
         if (device.currentDashboard) {
-            const newWidget = device.currentDashboard.configuration.calculatedWidgets.find(
-                (w: { id: any }) => w?.id === widget?.id,
-            );
+            const newWidget = (
+                device.currentDashboard.configuration.calculatedWidgets as {
+                    id: any;
+                    configuration?: any;
+                }[]
+            ).find((w) => w?.id === widget?.id);
 
             if (!newWidget) {
                 console.warn("[RadioWidget] Widget not found in current dashboard.");

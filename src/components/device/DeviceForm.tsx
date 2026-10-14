@@ -331,7 +331,6 @@ const DeviceForm = forwardRef<DeviceFormRef, DeviceFormProps>(function DeviceFor
                             presenceType !== "Default"
                                 ? { type: presenceType as DevicePresenceType, value: null }
                                 : undefined,
-                        display: true,
                         createdAtUtc: new Date().toISOString(),
                         updatedAtUtc: new Date().toISOString(),
                     }}

@@ -6,44 +6,11 @@ import React, {
     PropsWithChildren,
     FC,
 } from "react";
-import { useHttpClient } from "../HttpClientProvider";
+import { useApi } from "../ApiProvider";
 import { useHomes } from "../domain/HomeProvider";
-import { ListResponse } from "@/utils/httpClient";
 import { useToast } from "../ToastProvider";
-import { DevicePresenceType, OperationType } from "@/types/DeviceTypes";
-
-export interface OperationListDto {
-    id: string;
-    name: string;
-    type: OperationType;
-}
-
-interface DeviceTile {
-    type: string;
-    operationId?: string;
-    displayableOperationId?: string;
-    value: any;
-    configuration?: any;
-}
-
-interface DevicePresence {
-    type: DevicePresenceType;
-    operationId?: string;
-    value?: boolean | null;
-    lastSeenAtUtc?: string | null;
-}
-
-interface Device {
-    id: string;
-    roomId?: string;
-    icon: string;
-    name: string;
-    tile: DeviceTile;
-    display: any;
-    presence?: DevicePresence;
-    createdAtUtc: string;
-    updatedAtUtc: string;
-}
+import { call, isNotFound } from "@/api/call";
+import { Device, DevicePresence, OperationListDto, toDevice } from "@/types/DeviceTypes";
 
 interface DevicesContextProps {
     loading: boolean;
@@ -83,7 +50,7 @@ export const useDeviceList = () => useContext(DeviceListContext);
 const DeviceListProvider: FC<PropsWithChildren> = ({ children }) => {
     const homes = useHomes();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const [filter, setFilter] = useState<string>("all");
     const [devices, setDevices] = useState<Device[]>([]);
     const [filteredDevices, setFilteredDevices] = useState<Device[]>([]);
@@ -111,10 +78,10 @@ const DeviceListProvider: FC<PropsWithChildren> = ({ children }) => {
     };
 
     const refreshDevice = async (deviceId: string) => {
-        const result = await httpClient.get(`v1/devices/${deviceId}/display`);
+        const result = await call(() => api.devices.displayDevice({ deviceId }));
 
-        if (result.isSuccess) {
-            const updated = (await result.response!.json()) as Device;
+        if (result.isSuccess && result.data?.device) {
+            const updated = toDevice(result.data.device);
             setDevices((prev) => prev.map((d) => (d.id === deviceId ? updated : d)));
             console.info(`[DeviceListProvider] Refreshed device: ${deviceId}`);
         } else {
@@ -130,7 +97,8 @@ const DeviceListProvider: FC<PropsWithChildren> = ({ children }) => {
 
     useEffect(() => {
         const getDevices = async () => {
-            if (!homes.current?.id) {
+            const homeId = homes.current?.id;
+            if (!homeId) {
                 console.debug("[DeviceListProvider] No home selected.");
                 return;
             }
@@ -138,21 +106,21 @@ const DeviceListProvider: FC<PropsWithChildren> = ({ children }) => {
             setLoading(true);
             setFilter("all");
 
-            const result = await httpClient.get("v1/devices/display?homeId=" + homes.current?.id);
+            const result = await call(() => api.devices.displayDevices({ homeId }));
 
             if (result.isSuccess) {
-                const data = (await result.response!.json()) as ListResponse<Device>;
+                const items = (result.data?.items ?? []).map(toDevice);
 
-                setDevices(data.items);
-                setFilteredDevices(data.items);
+                setDevices(items);
+                setFilteredDevices(items);
 
                 console.info("[DeviceListProvider] Successfully fetched devices.");
-            } else if (result.statusCode === 404) {
+            } else if (isNotFound(result)) {
                 console.warn("[DeviceListProvider] No devices found for the current home.");
                 setDevices([]);
                 setFilteredDevices([]);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
                 setDevices([]);
             }
 
@@ -183,4 +151,5 @@ const DeviceListProvider: FC<PropsWithChildren> = ({ children }) => {
     );
 };
 
-export { DeviceListProvider, DeviceListContext, Device, DevicePresence };
+export { DeviceListProvider, DeviceListContext };
+export type { Device, DevicePresence, OperationListDto };

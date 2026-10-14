@@ -1,6 +1,13 @@
-import { OperationDto, WidgetDto, WidgetType } from "@/types/DeviceTypes";
+import {
+    OperationDto,
+    WidgetDto,
+    WidgetType,
+    toOperationDto,
+    toWidgetDto,
+} from "@/types/DeviceTypes";
+import { call } from "@/api/call";
 import React, { createContext, useContext, useState, useRef, ReactNode } from "react";
-import { useHttpClient } from "../HttpClientProvider";
+import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
 
 type AddWidgetDto = {
@@ -61,7 +68,7 @@ const WidgetDetailsContext = createContext<WidgetDetailsContextProps>({
 });
 
 export const WidgetDetailsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
 
     const [loading, setLoading] = useState<boolean>(false);
@@ -81,13 +88,12 @@ export const WidgetDetailsProvider: React.FC<{ children: ReactNode }> = ({ child
 
         setLoading(true);
 
-        const response = await httpClient.get("v1/devices/operations/" + operationId);
+        const response = await call(() => api.operations.getOperation({ operationId }));
 
         if (response.isSuccess) {
-            const content = (await response.response?.json()) as OperationDto;
-            setOperation(content);
+            setOperation(toOperationDto(response.data!));
         } else {
-            toast.httpError(response);
+            toast.apiError(response);
         }
 
         setWidget({
@@ -113,27 +119,26 @@ export const WidgetDetailsProvider: React.FC<{ children: ReactNode }> = ({ child
 
         setLoading(true);
 
-        const widgetResponse = await httpClient.get("v1/devices/widgets/" + widgetId);
+        const widgetResponse = await call(() => api.widgets.getWidget({ widgetId }));
 
         let operationId = "";
 
         if (widgetResponse.isSuccess) {
-            const content = (await widgetResponse.response?.json()) as WidgetDto;
+            const content = toWidgetDto(widgetResponse.data!);
             operationId = content.operationId;
             setWidget(content);
         } else {
-            toast.httpError(widgetResponse);
+            toast.apiError(widgetResponse);
             setLoading(false);
             return;
         }
 
-        const response = await httpClient.get("v1/devices/operations/" + operationId);
+        const response = await call(() => api.operations.getOperation({ operationId }));
 
         if (response.isSuccess) {
-            const content = (await response.response?.json()) as OperationDto;
-            setOperation(content);
+            setOperation(toOperationDto(response.data!));
         } else {
-            toast.httpError(response);
+            toast.apiError(response);
             setLoading(false);
             return;
         }

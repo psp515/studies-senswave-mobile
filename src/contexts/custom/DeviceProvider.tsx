@@ -7,21 +7,15 @@ import React, {
     useState,
     useRef,
 } from "react";
-import { useHttpClient } from "../HttpClientProvider";
-import { ListResponse } from "@/utils/httpClient";
+import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
+import { call, isNotFound } from "@/api/call";
+import { structToJson } from "@/api/json";
+import { DashboardDisplayDto, ListDashboardDto } from "@/types/DeviceTypes";
 
-export type ListDashboardDto = {
-    id: string;
-    name: string;
-    icon: string;
-    type: string;
-};
+export type { ListDashboardDto };
 
-type DashhoardDto = {
-    type: "grid";
-    configuration: any;
-};
+type DashhoardDto = DashboardDisplayDto;
 
 interface DeviceContextProps {
     loading: boolean;
@@ -50,7 +44,7 @@ const DeviceContext = createContext<DeviceContextProps>({
 export const useDevice = () => useContext(DeviceContext);
 
 const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [deviceId, setDeviceId] = useState("");
@@ -80,15 +74,16 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
     };
 
     const baseLoadingLogic = async () => {
-        const result = await httpClient.get(
-            `v1/devices/dashboards/display?deviceId=${deviceIdRef.current}`,
-        );
+        const deviceId = deviceIdRef.current;
+        const result = await call(() => api.dashboards.displayDashboards({ deviceId }));
 
         if (result.isSuccess) {
-            const content = (await result.response!.json()) as ListResponse<ListDashboardDto>;
-            setDashboards(content.items);
+            const items: ListDashboardDto[] = (result.data?.items ?? []).map(
+                ({ id, name, icon, type }) => ({ id, name, icon, type }),
+            );
+            setDashboards(items);
 
-            if (content.items.length === 0) {
+            if (items.length === 0) {
                 setCurrentDashboardId("");
                 console.info("[DeviceProvider] Refreshing resulted in no dashboards.");
                 return;
@@ -96,37 +91,35 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
 
             let tmpDashboardId = currentDashboardIdRef.current;
 
-            if (content.items.find((d) => d.id === currentDashboardIdRef.current) === undefined) {
-                tmpDashboardId = content.items[0].id;
+            if (items.find((d) => d.id === currentDashboardIdRef.current) === undefined) {
+                tmpDashboardId = items[0].id;
                 console.info(`[DeviceProvider] Current dashboard not found in refreshed list.`);
             }
 
-            const dashboardResult = await httpClient.get(
-                `v1/devices/dashboards/${tmpDashboardId}/display`,
+            const dashboardResult = await call(() =>
+                api.dashboards.displayDashboard({ dashboardId: tmpDashboardId }),
             );
 
             if (dashboardResult.isSuccess) {
-                const content = (await dashboardResult.response!.json()) as DashhoardDto;
+                const d = dashboardResult.data!;
                 setCurrentDashboardId(tmpDashboardId);
-                setCurrentDashboard(content);
+                setCurrentDashboard({ type: d.type, configuration: structToJson(d.configuration) });
                 console.info("[DeviceProvider] Fetched dashboard details.");
             } else {
-                const text = await dashboardResult.response!.text();
                 console.error(
                     "[DeviceProvider] Failed to fetch dashboard details.",
                     dashboardResult,
-                    text,
                 );
             }
 
             console.info("[DeviceProvider] Fetched dashboards for device.");
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setDashboards([]);
             setCurrentDashboardId("");
             console.info("[DeviceProvider] No dashboards found for device.");
         } else {
             console.error("[DeviceProvider] Failed to fetch dashboards.", result);
-            toast.httpError(result);
+            toast.apiError(result);
             setDashboards([]);
             setCurrentDashboardId("");
         }
@@ -174,26 +167,27 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
 
         const getDashboards = async () => {
             setLoading(true);
-            const result = await httpClient.get(
-                `v1/devices/dashboards/display?deviceId=${deviceIdRef.current}`,
-            );
+            const deviceId = deviceIdRef.current;
+            const result = await call(() => api.dashboards.displayDashboards({ deviceId }));
 
             if (result.isSuccess) {
-                const content = (await result.response!.json()) as ListResponse<ListDashboardDto>;
-                setDashboards(content.items);
-                if (content.items.length > 0) {
-                    setCurrentDashboardId(content.items[0].id);
+                const items: ListDashboardDto[] = (result.data?.items ?? []).map(
+                    ({ id, name, icon, type }) => ({ id, name, icon, type }),
+                );
+                setDashboards(items);
+                if (items.length > 0) {
+                    setCurrentDashboardId(items[0].id);
                 } else {
                     setCurrentDashboardId("");
                 }
                 console.info("[DeviceProvider] Fetched dashboards for device. In useEffect.");
-            } else if (result.statusCode === 404) {
+            } else if (isNotFound(result)) {
                 setDashboards([]);
                 setCurrentDashboardId("");
                 console.info("[DeviceProvider] No dashboards found for device.");
             } else {
                 console.error("[DeviceProvider] Failed to fetch dashboards.", result);
-                toast.httpError(result);
+                toast.apiError(result);
                 setDashboards([]);
                 setCurrentDashboardId("");
             }
@@ -209,15 +203,14 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
         const getDashboardDetails = async (id: string) => {
             setLoading(true);
 
-            const result = await httpClient.get(`v1/devices/dashboards/${id}/display`);
+            const result = await call(() => api.dashboards.displayDashboard({ dashboardId: id }));
 
             if (result.isSuccess) {
-                const content = (await result.response!.json()) as DashhoardDto;
-                setCurrentDashboard(content);
+                const d = result.data!;
+                setCurrentDashboard({ type: d.type, configuration: structToJson(d.configuration) });
                 console.info("[DeviceProvider] Fetched dashboard details.");
             } else {
-                const text = await result.response!.text();
-                console.error("[DeviceProvider] Failed to fetch dashboard details.", result, text);
+                console.error("[DeviceProvider] Failed to fetch dashboard details.", result);
             }
 
             setLoading(false);

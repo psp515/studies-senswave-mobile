@@ -129,7 +129,7 @@ function Details() {
                 initTileType={device?.tile.type}
                 initTileOperationId={device?.tile.operationId}
                 initTileDisplayableOperationId={device?.tile.displayableOperationId}
-                initTileUnit={device?.tile.configuration?.unit}
+                initTileUnit={device?.tile.configuration?.unit as string | undefined}
                 initPresenceType={device?.presence?.type}
                 initPresenceOperationId={device?.presence?.operationId}
             />
