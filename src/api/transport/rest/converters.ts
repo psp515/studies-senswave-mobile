@@ -31,3 +31,15 @@ export const query = (params: Record<string, string | number | undefined>): stri
     }
     return parts.length ? `?${parts.join("&")}` : "";
 };
+
+export const numOrUndefined = (v: unknown): number | undefined =>
+    typeof v === "number" ? v : undefined;
+
+export const strOrUndefined = (v: unknown): string | undefined =>
+    typeof v === "string" ? v : undefined;
+
+/** Maps `json.items` (or a bare array) element-wise; non-arrays yield []. */
+export const items = <T>(json: unknown, map: (item: Record<string, unknown>) => T): T[] => {
+    const list = Array.isArray(json) ? json : asRecord(json).items;
+    return Array.isArray(list) ? list.map((i) => map(asRecord(i))) : [];
+};
