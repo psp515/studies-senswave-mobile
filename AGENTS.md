@@ -282,9 +282,9 @@ These are the REST routes behind the generated clients (called via `useApi()`, n
 `useApi().liveUpdateSource` is a transport-neutral `LiveUpdateSource` (`src/api/liveUpdates/`) built in
 `ApiProvider` from the effective transport mode:
 
-- **Rest** — SignalR source: hub `signalr/liveupdates/live`, `accessTokenFactory` reads the latest
+- **Rest** â€” SignalR source: hub `signalr/liveupdates/live`, `accessTokenFactory` reads the latest
   `accessToken`, invokes `Initialize(homeId)`, maps `"Update"` events to `LiveUpdate` messages.
-- **Grpc / GrpcWeb** — `LiveUpdatesService.Subscribe` server stream (`homeReferenceId`).
+- **Grpc / GrpcWeb** â€” `LiveUpdatesService.Subscribe` server stream (`homeReferenceId`).
 
 `LiveUpdateProvider` subscribes while authenticated with an active home; on any source error it
 resubscribes after 15 s, except `PermissionDenied` (SignalR `AccessNotGrantedToHome`), which is only
