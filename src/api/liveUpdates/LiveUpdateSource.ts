@@ -72,7 +72,7 @@ export const createGrpcLiveUpdateSource = (
             } catch (e) {
                 if (!ac.signal.aborted) onError(toApiError(e));
             }
-        })();
+        })().catch(() => undefined);
         return () => ac.abort();
     },
 });

@@ -99,4 +99,38 @@ describe("createSignalRLiveUpdateSource", () => {
         await flush();
         expect(s.onError).not.toHaveBeenCalled();
     });
+
+    it("reports invoke rejection once and stops the connection", async () => {
+        const f = makeFake();
+        f.fake.invoke.mockImplementation(() => Promise.reject(new Error("bad")));
+        const source = createSignalRLiveUpdateSource({
+            url: "u",
+            getAccessToken: () => "t",
+            buildConnection: () => f.fake as unknown as HubConnection,
+        });
+        const onError = jest.fn();
+        source.subscribe("h", jest.fn(), onError);
+        await flush();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(f.fake.stop).toHaveBeenCalled();
+        f.close();
+        expect(onError).toHaveBeenCalledTimes(1);
+    });
+
+    it("passes an accessTokenFactory that reads the current token", () => {
+        const f = makeFake();
+        let token = "one";
+        let factory!: () => string;
+        createSignalRLiveUpdateSource({
+            url: "u",
+            getAccessToken: () => token,
+            buildConnection: (_u, tf) => {
+                factory = tf;
+                return f.fake as unknown as HubConnection;
+            },
+        }).subscribe("h", jest.fn(), jest.fn());
+        expect(factory()).toBe("one");
+        token = "two";
+        expect(factory()).toBe("two");
+    });
 });

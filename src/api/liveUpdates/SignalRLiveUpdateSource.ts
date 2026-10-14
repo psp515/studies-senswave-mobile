@@ -29,9 +29,15 @@ export const createSignalRLiveUpdateSource = (
             else console.info(`[Live Update] Unknown update type: ${updateType}`);
         });
 
-        connection.on("AccessNotGrantedToHome", (deniedHomeId: string) => {
+        const finish = (err: ApiError) => {
             if (stopped) return;
-            onError(
+            stopped = true;
+            connection.stop().catch(() => undefined);
+            onError(err);
+        };
+
+        connection.on("AccessNotGrantedToHome", (deniedHomeId: string) => {
+            finish(
                 new ApiError({
                     code: Code.PermissionDenied,
                     message: `Access not granted to home ${deniedHomeId}`,
@@ -40,8 +46,7 @@ export const createSignalRLiveUpdateSource = (
         });
 
         connection.onclose(() => {
-            if (stopped) return;
-            onError(
+            finish(
                 new ApiError({ code: Code.Unavailable, message: "Live update connection closed" }),
             );
         });
@@ -53,9 +58,7 @@ export const createSignalRLiveUpdateSource = (
                 if (stopped) return;
                 onUpdate(create(LiveUpdateSchema, { update: { case: "initialized", value: {} } }));
             })
-            .catch((e) => {
-                if (!stopped) onError(toApiError(e));
-            });
+            .catch((e) => finish(toApiError(e)));
 
         return () => {
             stopped = true;
