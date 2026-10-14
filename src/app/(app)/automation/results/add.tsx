@@ -5,7 +5,7 @@ import { useLocalSearchParams } from "expo-router";
 import AutomationResultForm from "@/components/automations/results/AutomationResultForm";
 
 export default function AddAutomationResult() {
-    const automationId = useLocalSearchParams().automationId as string;
+    const automationId = useLocalSearchParams<{ automationId?: string }>().automationId;
     console.log("Automation id: ", automationId);
 
     const toast = useToast();
@@ -23,7 +23,7 @@ export default function AddAutomationResult() {
         const result = await callSimple(
             () =>
                 api.automations.putResultToAutomation({
-                    automationId,
+                    automationId: automationId ?? "",
                     operationId: values.operationId,
                     value: String(values.value),
                 }),
@@ -45,7 +45,7 @@ export default function AddAutomationResult() {
 
     return (
         <AutomationResultForm
-            automationId={automationId}
+            automationId={automationId ?? ""}
             edit={edit}
             onButtonClick={onButtonClick}
         />

@@ -6,7 +6,7 @@ import { useLocalSearchParams } from "expo-router";
 import AutomationConditionForm from "@/components/automations/conditions/AutomationConditionForm";
 
 export default function AddAutomationCondition() {
-    const automationId = useLocalSearchParams().automationId as string;
+    const automationId = useLocalSearchParams<{ automationId?: string }>().automationId;
     console.log("Automation id: ", automationId);
 
     const toast = useToast();
@@ -24,7 +24,7 @@ export default function AddAutomationCondition() {
         const result = await callSimple(
             () =>
                 api.automations.putConditionToAutomation({
-                    automationId,
+                    automationId: automationId ?? "",
                     operationId: values.operationId,
                     conditionType: conditionTypeFromString(values.conditionType),
                     conditionConfiguration: values.conditionConfiguration,
@@ -50,7 +50,7 @@ export default function AddAutomationCondition() {
 
     return (
         <AutomationConditionForm
-            automationId={automationId}
+            automationId={automationId ?? ""}
             edit={edit}
             onButtonClick={onButtonClick}
         />
