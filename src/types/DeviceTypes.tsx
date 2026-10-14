@@ -1,8 +1,7 @@
-import { timestampDate, type Timestamp } from "@bufbuild/protobuf/wkt";
 import type { DisplayDeviceDto, GetDeviceResponse } from "@/api/gen/devices/v1/devices_pb";
 import type { GetOperationResponse } from "@/api/gen/devices/v1/operations_pb";
 import type { DisplayWidgetsResponse, GetWidgetResponse } from "@/api/gen/devices/v1/widgets_pb";
-import { fromProtoValue, structToJson } from "@/api/json";
+import { fromProtoValue, isoFromTimestamp, isoOrNull, structToJson } from "@/api/json";
 
 export type OperationType = "Boolean" | "Number" | "Integer" | "Text" | "HexColor" | "Options";
 
@@ -105,8 +104,6 @@ export type DashboardDisplayDto = {
     configuration: Record<string, unknown>;
 };
 
-const isoOrEmpty = (t: Timestamp | undefined): string => (t ? timestampDate(t).toISOString() : "");
-
 export const toDevice = (dto: DisplayDeviceDto): Device => ({
     id: dto.id,
     roomId: dto.roomId,
@@ -121,13 +118,11 @@ export const toDevice = (dto: DisplayDeviceDto): Device => ({
         ? {
               type: dto.presence.type as DevicePresenceType,
               value: dto.presence.value ?? null,
-              lastSeenAtUtc: dto.presence.lastSeenAtUtc
-                  ? timestampDate(dto.presence.lastSeenAtUtc).toISOString()
-                  : null,
+              lastSeenAtUtc: isoOrNull(dto.presence.lastSeenAtUtc),
           }
         : undefined,
-    createdAtUtc: isoOrEmpty(dto.createdAtUtc),
-    updatedAtUtc: isoOrEmpty(dto.updatedAtUtc),
+    createdAtUtc: isoFromTimestamp(dto.createdAtUtc),
+    updatedAtUtc: isoFromTimestamp(dto.updatedAtUtc),
 });
 
 export const toDeviceDetails = (r: GetDeviceResponse): Device => ({

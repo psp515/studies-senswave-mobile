@@ -4,7 +4,7 @@ import type {
     GetTermsAndConditionsResponse,
 } from "@/api/gen/users/v1/legal_pb";
 import { useAnonymousApi } from "@/contexts/AnonymousApiProvider";
-import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { isoFromTimestamp } from "@/api/json";
 import { Result } from "@/utils/result";
 import { createContext, FC, PropsWithChildren, useContext } from "react";
 
@@ -35,7 +35,7 @@ const toLegalDocument = (
     version: r.version,
     content: r.content,
     summary: r.summary,
-    createdAtUtc: r.createdAtUtc ? timestampDate(r.createdAtUtc).toISOString() : "",
+    createdAtUtc: isoFromTimestamp(r.createdAtUtc),
 });
 
 export const LegalProvider: FC<PropsWithChildren> = ({ children }) => {

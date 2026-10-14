@@ -1,6 +1,12 @@
 import { create } from "@bufbuild/protobuf";
-import { ValueSchema } from "@bufbuild/protobuf/wkt";
-import { fromProtoValue, structToJson, toProtoValue } from "@/api/json";
+import { timestampFromDate, ValueSchema } from "@bufbuild/protobuf/wkt";
+import {
+    fromProtoValue,
+    isoFromTimestamp,
+    isoOrNull,
+    structToJson,
+    toProtoValue,
+} from "@/api/json";
 
 describe("json helpers", () => {
     it.each([["text"], [1.5], [true], [false], [null]])("round-trips %p", (v) => {
@@ -23,5 +29,18 @@ describe("json helpers", () => {
     it("structToJson returns {} for undefined", () => {
         expect(structToJson(undefined)).toEqual({});
         expect(structToJson({ a: 1 })).toEqual({ a: 1 });
+    });
+
+    it("isoFromTimestamp formats ISO and falls back when unset", () => {
+        const t = timestampFromDate(new Date("2026-01-02T03:04:05.000Z"));
+        expect(isoFromTimestamp(t)).toBe("2026-01-02T03:04:05.000Z");
+        expect(isoFromTimestamp(undefined)).toBe("");
+        expect(isoFromTimestamp(undefined, "n/a")).toBe("n/a");
+    });
+
+    it("isoOrNull returns null when unset", () => {
+        const t = timestampFromDate(new Date("2026-01-02T03:04:05.000Z"));
+        expect(isoOrNull(t)).toBe("2026-01-02T03:04:05.000Z");
+        expect(isoOrNull(undefined)).toBeNull();
     });
 });
