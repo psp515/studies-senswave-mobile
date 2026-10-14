@@ -13,6 +13,8 @@ interface ConfigurationContextType {
     getSignalRUrl: (path: string) => URL;
     overrideUrl: (url: string) => void;
     transportMode: TransportMode;
+    /** True once the persisted transport override has been read from storage. */
+    isHydrated: boolean;
     overrideTransportMode: (mode: TransportMode | null) => void;
     isDevelopment: () => boolean;
     isAppCompatibleWithApi: () => Promise<boolean>;
@@ -36,6 +38,7 @@ const ConfigurationContext = createContext<ConfigurationContextType>({
         console.error("[Configuration Context] Not initialized.");
     },
     transportMode: "Rest",
+    isHydrated: false,
     overrideTransportMode(): void {
         console.error("[Configuration Context] Not initialized.");
     },
@@ -55,6 +58,7 @@ export const ConfigurationProvider: FC<PropsWithChildren> = ({ children }) => {
     const [urlOverride, setUrlOverride] = useState<string>("");
     const TransportOverrideKey = "configuration.transportModeOverride";
     const [transportOverride, setTransportOverride] = useState<string | null>(null);
+    const [isHydrated, setIsHydrated] = useState(false);
 
     const isDevelopment = (): boolean => {
         return process.env.EXPO_PUBLIC_ENVIRONMENT === "Development";
@@ -63,7 +67,8 @@ export const ConfigurationProvider: FC<PropsWithChildren> = ({ children }) => {
     useEffect(() => {
         AsyncStorage.getItem(TransportOverrideKey)
             .then((v) => setTransportOverride(v))
-            .catch(() => undefined);
+            .catch(() => undefined)
+            .finally(() => setIsHydrated(true));
     }, []);
 
     const overrideTransportMode = (mode: TransportMode | null) => {
@@ -204,6 +209,7 @@ export const ConfigurationProvider: FC<PropsWithChildren> = ({ children }) => {
         getSignalRUrl: getSignalRUrl,
         overrideUrl: overrideUrl,
         transportMode: transportMode,
+        isHydrated: isHydrated,
         overrideTransportMode: overrideTransportMode,
         isDevelopment: isDevelopment,
         isAppCompatibleWithApi: isAppCompatibleWithApi,

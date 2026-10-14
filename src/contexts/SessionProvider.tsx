@@ -447,10 +447,11 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
         }
     };
 
+    // Wait for the persisted transport override so the startup refresh uses the final transport.
     useEffect(() => {
-        initialize();
+        if (configuration.isHydrated) initialize();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [configuration.isHydrated]);
 
     return (
         <SessionContext.Provider

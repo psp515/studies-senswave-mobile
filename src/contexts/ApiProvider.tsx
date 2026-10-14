@@ -62,21 +62,7 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
         console.error("[Api] SignalR URL is not configured or invalid.", e);
     }
 
-    // The session belongs to one backend + transport: end it when either changes (not on mount).
-    const prevRef = useRef<{ baseUrl: string; mode: TransportMode } | null>(null);
-    useEffect(() => {
-        const next = { baseUrl, mode: requestedTransportMode };
-        if (
-            shouldLogoutOnChange(prevRef.current, next) &&
-            sessionRef.current.session.authenticated
-        ) {
-            console.info("[Api] Transport changed, logging out.");
-            sessionRef.current.logout();
-        }
-        prevRef.current = next;
-    }, [baseUrl, requestedTransportMode]);
-
-    const value = useMemo<ApiContextValue>(() => {
+    const resolved = useMemo(() => {
         const interceptors = createInterceptors({
             getAccessToken: () => {
                 const s = sessionRef.current.session;
@@ -101,13 +87,35 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
             },
         });
 
-        const { transport, mode } = resolveTransport({
+        const result = resolveTransport({
             mode: requestedTransportMode,
             baseUrl: baseUrl || null,
             interceptors,
         });
-        console.info(`[Api] Transport ${mode} → ${baseUrl || "(unconfigured)"}`);
+        console.info(`[Api] Transport ${result.mode} → ${baseUrl || "(unconfigured)"}`);
+        return result;
+    }, [baseUrl, requestedTransportMode]);
+    const effectiveMode = resolved.mode;
 
+    // The session belongs to one backend + effective transport: end it when either changes. Wait
+    // for the persisted override to load, then take the first hydrated render as the baseline.
+    const prevRef = useRef<{ baseUrl: string; mode: TransportMode } | null>(null);
+    const isHydrated = configuration.isHydrated;
+    useEffect(() => {
+        if (!isHydrated) return;
+        const next = { baseUrl, mode: effectiveMode };
+        if (
+            shouldLogoutOnChange(prevRef.current, next) &&
+            sessionRef.current.session.authenticated
+        ) {
+            console.info("[Api] Transport changed, logging out.");
+            sessionRef.current.logout();
+        }
+        prevRef.current = next;
+    }, [baseUrl, effectiveMode, isHydrated]);
+
+    const value = useMemo<ApiContextValue>(() => {
+        const { transport, mode } = resolved;
         const clients = createApiClients(transport);
 
         const liveUpdateSource = createLiveUpdateSource({
@@ -123,7 +131,7 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
             requestedTransportMode,
             liveUpdateSource,
         };
-    }, [baseUrl, signalRUrl, requestedTransportMode]);
+    }, [resolved, signalRUrl, requestedTransportMode]);
 
     return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 };

@@ -204,11 +204,11 @@ describe("gRPC-Web transport", () => {
             transport: ReturnType<typeof setup>["transport"],
             options?: { timeoutMs?: number },
         ) => {
-            for await (const _ of createClient(LiveUpdatesService, transport).subscribe(
+            for await (const u of createClient(LiveUpdatesService, transport).subscribe(
                 { homeReferenceId: "h1" },
                 options,
             )) {
-                // drain
+                expect(u).toBeDefined();
             }
         };
 
