@@ -70,6 +70,21 @@ describe("createGrpcLiveUpdateSource", () => {
         expect((onError.mock.calls[0][0] as ApiError).code).toBe(Code.Unavailable);
     });
 
+    it("subscribes without a deadline (timeoutMs 0) and with an abort signal", async () => {
+        const subscribe = jest.fn(async function* () {
+            yield tile("a");
+        });
+        const source = createGrpcLiveUpdateSource({ subscribe } as any);
+        source.subscribe("home1", jest.fn(), jest.fn());
+        await flush();
+        const opts = (subscribe.mock.calls as unknown[][])[0][1] as {
+            timeoutMs: number;
+            signal: AbortSignal;
+        };
+        expect(opts.timeoutMs).toBe(0);
+        expect(opts.signal).toBeInstanceOf(AbortSignal);
+    });
+
     it("maps thrown ConnectError to ApiError", async () => {
         const subscribe = jest.fn(async function* () {
             yield tile("a");

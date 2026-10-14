@@ -64,7 +64,9 @@ export const createGrpcLiveUpdateSource = (
             try {
                 for await (const u of client.subscribe(
                     { homeReferenceId: homeId },
-                    { signal: ac.signal },
+                    // timeoutMs <= 0 disables the deadline; a long-lived stream must not inherit
+                    // the transport's unary default (15 s over gRPC-Web).
+                    { signal: ac.signal, timeoutMs: 0 },
                 )) {
                     if (ac.signal.aborted) return;
                     try {

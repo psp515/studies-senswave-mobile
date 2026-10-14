@@ -184,4 +184,81 @@ describe("gRPC-Web transport", () => {
         expect(fetchSpy).toHaveBeenCalledTimes(2);
         expect(auths).toEqual(["Bearer old", "Bearer new"]);
     });
+
+    describe("stream deadline", () => {
+        const okStream = () =>
+            grpcWebResponse(
+                concat(
+                    dataFrame(
+                        toBinary(
+                            LiveUpdateSchema,
+                            create(LiveUpdateSchema, {
+                                update: { case: "initialized", value: {} },
+                            }),
+                        ),
+                    ),
+                    trailerFrame({ "grpc-status": "0" }),
+                ),
+            );
+        const drain = async (
+            transport: ReturnType<typeof setup>["transport"],
+            options?: { timeoutMs?: number },
+        ) => {
+            for await (const _ of createClient(LiveUpdatesService, transport).subscribe(
+                { homeReferenceId: "h1" },
+                options,
+            )) {
+                // drain
+            }
+        };
+
+        it("sends no grpc-timeout header when timeoutMs is 0", async () => {
+            const { fetchSpy, transport } = setup(okStream);
+            await drain(transport, { timeoutMs: 0 });
+            const headers = new Headers(fetchSpy.mock.calls[0][1]?.headers);
+            expect(headers.has("grpc-timeout")).toBe(false);
+        });
+
+        it("sends the default grpc-timeout header when timeoutMs is omitted", async () => {
+            const { fetchSpy, transport } = setup(okStream);
+            await drain(transport);
+            const headers = new Headers(fetchSpy.mock.calls[0][1]?.headers);
+            expect(headers.get("grpc-timeout")).toBe("15000m");
+        });
+    });
+
+    it("retries a server stream after a plain HTTP 401 without grpc-status", async () => {
+        const live = toBinary(
+            LiveUpdateSchema,
+            create(LiveUpdateSchema, { update: { case: "initialized", value: {} } }),
+        );
+        let n = 0;
+        const auths: (string | null)[] = [];
+        const fetchSpy = jest.fn(async (_url: unknown, init?: RequestInit) => {
+            auths.push(new Headers(init?.headers).get("Authorization"));
+            return ++n === 1
+                ? new Response("unauthorized", { status: 401 })
+                : grpcWebResponse(concat(dataFrame(live), trailerFrame({ "grpc-status": "0" })));
+        });
+        let token = "old";
+        const transport = createSenswaveGrpcWebTransport({
+            baseUrl: "https://h",
+            fetch: fetchSpy as unknown as typeof fetch,
+            interceptors: createInterceptors({
+                getAccessToken: () => token,
+                refresh: async () => (token = "new"),
+                logout: jest.fn(),
+                onRefreshFailed: jest.fn(),
+                onForbidden: jest.fn(),
+            }),
+        });
+        const cases: (string | undefined)[] = [];
+        for await (const u of createClient(LiveUpdatesService, transport).subscribe({
+            homeReferenceId: "h1",
+        })) {
+            cases.push(u.update.case);
+        }
+        expect(cases).toEqual(["initialized"]);
+        expect(auths).toEqual(["Bearer old", "Bearer new"]);
+    });
 });

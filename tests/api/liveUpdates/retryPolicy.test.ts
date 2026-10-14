@@ -31,6 +31,11 @@ describe("retryPolicy", () => {
         expect(d).toBeLessThanOrEqual(2000);
     });
 
+    it("retries quickly after initialized DeadlineExceeded", () => {
+        expect(nextRetryDelayMs(err(Code.DeadlineExceeded), true, () => 0)).toBe(1000);
+        expect(nextRetryDelayMs(err(Code.DeadlineExceeded), false)).toBe(15000);
+    });
+
     it("keeps 15s for other codes after initialized", () => {
         expect(nextRetryDelayMs(err(Code.Internal), true)).toBe(15000);
     });

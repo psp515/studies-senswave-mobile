@@ -19,7 +19,7 @@ export const isTerminalLiveUpdateError = (err: unknown): boolean => {
 
 /**
  * Delay before resubscribing, or null when the error is terminal. A stream that had reached
- * `initialized` and then dropped with Unavailable reconnects fast (1 s + up to 1 s jitter).
+ * `initialized` and then dropped with Unavailable or DeadlineExceeded reconnects fast (1 s + up to 1 s jitter).
  */
 export const nextRetryDelayMs = (
     err: unknown,
@@ -27,7 +27,8 @@ export const nextRetryDelayMs = (
     random: () => number = Math.random,
 ): number | null => {
     if (isTerminalLiveUpdateError(err)) return null;
-    if (hadInitialized && codeOf(err) === Code.Unavailable) {
+    const code = codeOf(err);
+    if (hadInitialized && (code === Code.Unavailable || code === Code.DeadlineExceeded)) {
         return FastRetryBaseMs + Math.floor(random() * FastRetryJitterMs);
     }
     return SlowRetryMs;
