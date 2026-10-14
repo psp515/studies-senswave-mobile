@@ -318,6 +318,8 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
             return identityValidationFailure(result.error, "Registration failed unexpectedly.");
         } catch (error) {
             console.error(`[Session Provider] Registration error: ${error}`);
+        } finally {
+            setSession({ ...session, loading: false });
         }
 
         return SimpleResult.failure("Registration failed unexpectedly.");
