@@ -52,6 +52,14 @@ export const createGrpcLiveUpdateSource = (
 ): LiveUpdateSource => ({
     subscribe(homeId, onUpdate, onError) {
         const ac = new AbortController();
+        // Consumer callbacks must never break the stream loop or surface as unhandled rejections.
+        const safeError = (err: ApiError) => {
+            try {
+                onError(err);
+            } catch (e) {
+                console.error("[LiveUpdate] onError threw", e);
+            }
+        };
         (async () => {
             try {
                 for await (const u of client.subscribe(
@@ -59,10 +67,14 @@ export const createGrpcLiveUpdateSource = (
                     { signal: ac.signal },
                 )) {
                     if (ac.signal.aborted) return;
-                    onUpdate(u);
+                    try {
+                        onUpdate(u);
+                    } catch (e) {
+                        console.error("[LiveUpdate] onUpdate threw", e);
+                    }
                 }
                 if (!ac.signal.aborted) {
-                    onError(
+                    safeError(
                         new ApiError({
                             code: Code.Unavailable,
                             message: "Live update stream ended",
@@ -70,7 +82,7 @@ export const createGrpcLiveUpdateSource = (
                     );
                 }
             } catch (e) {
-                if (!ac.signal.aborted) onError(toApiError(e));
+                if (!ac.signal.aborted) safeError(toApiError(e));
             }
         })().catch(() => undefined);
         return () => ac.abort();

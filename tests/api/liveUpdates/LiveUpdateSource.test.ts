@@ -82,6 +82,43 @@ describe("createGrpcLiveUpdateSource", () => {
         expect((onError.mock.calls[0][0] as ApiError).code).toBe(Code.PermissionDenied);
     });
 
+    it("keeps the stream alive when onUpdate throws", async () => {
+        const errSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const subscribe = jest.fn(async function* () {
+            yield tile("a");
+            yield tile("b");
+        });
+        const source = createGrpcLiveUpdateSource({ subscribe } as any);
+        const onUpdate = jest
+            .fn()
+            .mockImplementationOnce(() => {
+                throw new Error("boom");
+            })
+            .mockImplementation(() => undefined);
+        const onError = jest.fn();
+        source.subscribe("h", onUpdate, onError);
+        await flush();
+        expect(onUpdate).toHaveBeenCalledTimes(2);
+        expect(errSpy).toHaveBeenCalled();
+        expect((onError.mock.calls[0][0] as ApiError).code).toBe(Code.Unavailable);
+        errSpy.mockRestore();
+    });
+
+    it("does not leak a throwing onError", async () => {
+        const errSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+        const subscribe = jest.fn(async function* () {
+            yield tile("a");
+        });
+        const source = createGrpcLiveUpdateSource({ subscribe } as any);
+        const onError = jest.fn(() => {
+            throw new Error("boom");
+        });
+        source.subscribe("h", jest.fn(), onError);
+        await flush();
+        expect(onError).toHaveBeenCalledTimes(1);
+        errSpy.mockRestore();
+    });
+
     it("stops delivering after unsubscribe", async () => {
         let release!: () => void;
         const gate = new Promise<void>((r) => (release = r));
