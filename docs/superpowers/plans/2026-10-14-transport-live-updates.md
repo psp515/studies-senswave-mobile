@@ -14,7 +14,7 @@
 
 - `npm run typecheck`, `npm run lint`, `npm test` green after every task. Prettier 4-space, double quotes, trailing commas, width 100. Components `FC`.
 - `useLiveUpdate()` public API unchanged: `addDeviceTileCallback(deviceId, cb)`, `addHomeDataSourceCallback(cb)`. Dispatch behaviour unchanged: `deviceTile` → registered device callback (called with `{ deviceId }`), `widgets` → `device.smartRefresh(deviceId)`, `dataSourceState` → `home.updateHomeDataSourceState(dataSourceId, state)`, `devicePresence` → `deviceList.refreshDevice(deviceId)`, `initialized` → log only. Unknown → log.
-- Reconnect semantics unchanged: on source error wait 15 s then resubscribe while authenticated and a home is selected. `AccessNotGrantedToHome` (SignalR) / `PermissionDenied` (gRPC) → log error, no redirect (today's behaviour).
+- Reconnect semantics unchanged: on source error wait 15 s then resubscribe while authenticated and a home is selected. `FailedToInitialize` about access (SignalR) / `PermissionDenied` (gRPC) → log error, no redirect (today's behaviour).
 - SignalR URL stays `configuration.getSignalRUrl("signalr/liveupdates/live")` with `accessTokenFactory` reading the latest access token.
 - No UI/provider code imports `@microsoft/signalr` or `Code` after this PR; `SignalRProvider.tsx` deleted; `@microsoft/signalr` stays a dependency.
 - Commits `feat:` / `chore:` ending `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Never commit `.env` or `.superpowers/`.
@@ -22,7 +22,7 @@
 
 ## Wire facts
 
-- SignalR hub `signalr/liveupdates/live`: client invokes `Initialize(homeId)`; server sends `"Update"(updateType: string, data)` with `updateType ∈ { "deviceTileActionUpdate" {deviceId}, "widgetsActionUpdate" {deviceId}, "dataSourceStateUpdate" {dataSourceId, state}, "devicePresenceUpdate" {deviceId} }`, and `"AccessNotGrantedToHome"(homeId, message)`.
+- SignalR hub `signalr/liveupdates/live`: client invokes `Initialize(homeId)`; server sends `"Update"(updateType: string, data)` with `updateType ∈ { "deviceTileActionUpdate" {deviceId}, "widgetsActionUpdate" {deviceId}, "dataSourceStateUpdate" {dataSourceId, state}, "devicePresenceUpdate" {deviceId} }`, `"Initialized"()` once the subscription is established, and `"FailedToInitialize"(reason: string)` (access problems mention "access" → PermissionDenied, otherwise Unavailable/retry). `AccessNotGrantedToHome` is kept only as a compatibility alias. Backend contract: `ILiveUpdatesHub { Initialized(); FailedToInitialize(reason); Update(updateType, data) }`.
 - gRPC `LiveUpdatesService.Subscribe(SubscribeRequest{ homeReferenceId }) → stream LiveUpdate` with oneof `update`: `initialized {}`, `deviceTile { deviceId }`, `widgets { deviceId, widgetIds[] }`, `devicePresence { deviceId }`, `dataSourceState { dataSourceId, state }`. Generated at `@/api/gen/liveupdates/v1/liveupdates_pb` (`LiveUpdate`, `LiveUpdateSchema`, `LiveUpdatesService`); in TS the oneof is `update: { case: "deviceTile", value: DeviceTileUpdate } | …`.
 - The REST transport's `stream()` throws `Unimplemented`; gRPC source is only selected for `Grpc`/`GrpcWeb` effective modes (which exist from PR 8 on). In REST mode the SignalR source is used.
 

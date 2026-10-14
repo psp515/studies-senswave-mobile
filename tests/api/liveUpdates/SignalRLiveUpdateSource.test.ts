@@ -39,15 +39,52 @@ const setup = (startImpl?: () => Promise<void>) => {
 };
 
 describe("createSignalRLiveUpdateSource", () => {
-    it("starts, invokes Initialize and emits initialized", async () => {
+    it("starts and invokes Initialize without emitting initialized itself", async () => {
         const s = setup();
         await flush();
         expect(s.buildConnection).toHaveBeenCalledWith("http://x/hub", expect.any(Function));
         expect(s.fake.start).toHaveBeenCalled();
         expect(s.fake.invoke).toHaveBeenCalledWith("Initialize", "home1");
+        expect(s.onUpdate).not.toHaveBeenCalled();
+        expect(s.onError).not.toHaveBeenCalled();
+    });
+
+    it("registers only the hub events", () => {
+        const s = setup();
+        expect([...s.handlers.keys()].sort()).toEqual([
+            "AccessNotGrantedToHome",
+            "FailedToInitialize",
+            "Initialized",
+            "Update",
+        ]);
+    });
+
+    it("emits initialized when the hub sends Initialized", async () => {
+        const s = setup();
+        await flush();
+        s.handlers.get("Initialized")!();
         expect(s.onUpdate).toHaveBeenCalledTimes(1);
         expect(s.onUpdate.mock.calls[0][0].update.case).toBe("initialized");
         expect(s.onError).not.toHaveBeenCalled();
+    });
+
+    it("reports FailedToInitialize about access as PermissionDenied once and stops", async () => {
+        const s = setup();
+        await flush();
+        s.handlers.get("FailedToInitialize")!("No access to home.");
+        s.handlers.get("FailedToInitialize")!("No access to home.");
+        expect(s.onError).toHaveBeenCalledTimes(1);
+        const err = s.onError.mock.calls[0][0] as ApiError;
+        expect(err.code).toBe(Code.PermissionDenied);
+        expect(err.message).toContain("No access to home.");
+        expect(s.fake.stop).toHaveBeenCalled();
+    });
+
+    it("reports other FailedToInitialize reasons as Unavailable", async () => {
+        const s = setup();
+        await flush();
+        s.handlers.get("FailedToInitialize")!("Too many requests");
+        expect((s.onError.mock.calls[0][0] as ApiError).code).toBe(Code.Unavailable);
     });
 
     it("maps Update events and ignores unknown ones", async () => {
@@ -55,14 +92,14 @@ describe("createSignalRLiveUpdateSource", () => {
         await flush();
         s.handlers.get("Update")!("deviceTileActionUpdate", { deviceId: "d1" });
         s.handlers.get("Update")!("mystery", {});
-        expect(s.onUpdate).toHaveBeenCalledTimes(2);
-        expect(s.onUpdate.mock.calls[1][0].update).toEqual({
+        expect(s.onUpdate).toHaveBeenCalledTimes(1);
+        expect(s.onUpdate.mock.calls[0][0].update).toEqual({
             case: "deviceTile",
             value: expect.objectContaining({ deviceId: "d1" }),
         });
     });
 
-    it("reports AccessNotGrantedToHome as PermissionDenied", async () => {
+    it("keeps AccessNotGrantedToHome as a PermissionDenied alias", async () => {
         const s = setup();
         await flush();
         s.handlers.get("AccessNotGrantedToHome")!("home1", "nope");

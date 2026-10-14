@@ -283,11 +283,13 @@ These are the REST routes behind the generated clients (called via `useApi()`, n
 `ApiProvider` from the effective transport mode:
 
 - **Rest** — SignalR source: hub `signalr/liveupdates/live`, `accessTokenFactory` reads the latest
-  `accessToken`, invokes `Initialize(homeId)`, maps `"Update"` events to `LiveUpdate` messages.
+  `accessToken`, invokes `Initialize(homeId)`, maps `"Update"` events to `LiveUpdate` messages,
+  `Initialized` → `initialized`, `FailedToInitialize(reason)` → `PermissionDenied` when the reason
+  mentions access, else `Unavailable` (`AccessNotGrantedToHome` kept as an alias).
 - **Grpc / GrpcWeb** — `LiveUpdatesService.Subscribe` server stream (`homeReferenceId`).
 
 `LiveUpdateProvider` subscribes while authenticated with an active home; on any source error it
-resubscribes after 15 s, except `PermissionDenied` (SignalR `AccessNotGrantedToHome`), which is only
+resubscribes after 15 s, except `PermissionDenied` (SignalR `FailedToInitialize` about access), which is only
 logged (no redirect).
 
 ### Updates (`LiveUpdate.update.case`)
