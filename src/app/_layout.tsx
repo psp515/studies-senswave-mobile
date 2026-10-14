@@ -13,6 +13,7 @@ import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ConfigurationProvider } from "@/contexts/ConfigurationProvider";
 import { HttpClientProvider } from "@/contexts/HttpClientProvider";
+import { ApiProvider } from "@/contexts/ApiProvider";
 import { UserProvider } from "@/contexts/domain/UserProvider";
 import { LegalProvider } from "@/contexts/domain/LegalProvider";
 import { SignalRProvider } from "@/contexts/SignalRProvider";
@@ -58,11 +59,13 @@ export default function RootLayout() {
                                         <SessionProvider>
                                             <ThemeProvider>
                                                 <HttpClientProvider>
-                                                    <SignalRProvider>
-                                                        <UserProvider>
-                                                            <RootLayoutInner />
-                                                        </UserProvider>
-                                                    </SignalRProvider>
+                                                    <ApiProvider>
+                                                        <SignalRProvider>
+                                                            <UserProvider>
+                                                                <RootLayoutInner />
+                                                            </UserProvider>
+                                                        </SignalRProvider>
+                                                    </ApiProvider>
                                                 </HttpClientProvider>
                                             </ThemeProvider>
                                         </SessionProvider>

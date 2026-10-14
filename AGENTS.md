@@ -207,6 +207,11 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 
 ## API Layer
 
+- New (migration in progress): `useApi()` from `ApiProvider` exposes Connect clients generated from
+  backend protos (`src/api/gen`). Transport chosen by `EXPO_PUBLIC_TRANSPORT_MODE`; REST transport
+  maps RPCs to REST routes in `src/api/transport/rest/routes/`. Wrap calls with `call()` /
+  `callSimple()` from `src/api/call.ts` to get `Result<T>` / `SimpleResult`.
+- `useHttpClient()` remains until all call sites are migrated.
 - Hook: `useHttpClient()` — methods: `get`, `post`, `patch`, `put`, `delete`
 - Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
 - 15s request timeout
