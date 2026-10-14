@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { LiveUpdate } from "@/api/gen/liveupdates/v1/liveupdates_pb";
-import { isPermissionDenied } from "@/api/call";
+import { nextRetryDelayMs } from "@/api/liveUpdates/retryPolicy";
 import { useApi } from "../ApiProvider";
 import { useSession } from "../SessionProvider";
 import { useHomes } from "./HomeProvider";
@@ -131,14 +131,21 @@ export const LiveUpdateProvider = ({ children }: any) => {
 
         console.info(`[Live Update] Observing updates for home: ${homeId}`);
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let hadInitialized = false;
         const unsubscribe = source.subscribe(
             homeId,
-            (u) => dispatchRef.current(u),
+            (u) => {
+                if (u.update.case === "initialized") hadInitialized = true;
+                dispatchRef.current(u);
+            },
             (err) => {
                 console.error("[Live Update] Subscription error:", err.message);
-                if (!isPermissionDenied(err)) {
-                    timer = setTimeout(() => setRetry((r) => r + 1), 15000);
+                const delay = nextRetryDelayMs(err, hadInitialized);
+                if (delay === null) {
+                    console.warn("[Live Update] Terminal subscription error, not retrying.");
+                    return;
                 }
+                timer = setTimeout(() => setRetry((r) => r + 1), delay);
             },
         );
 

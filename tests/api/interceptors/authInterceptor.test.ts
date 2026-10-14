@@ -158,20 +158,23 @@ describe("authInterceptor", () => {
         expect(refreshCalls).toBe(1);
     });
 
-    it("does not retry streams", async () => {
-        let calls = 0;
+    it("refreshes once and retries a stream that fails Unauthenticated before it starts", async () => {
+        const seen: (string | null)[] = [];
+        const refresh = jest.fn(async () => "new");
         const i = createAuthInterceptor({
             getAccessToken: () => "old",
-            refresh: async () => "new",
+            refresh,
             logout: jest.fn(),
             onRefreshFailed: jest.fn(),
         });
         const streamReq = { ...unaryReq(), stream: true } as never;
-        await i(async () => {
-            calls++;
-            throw new ConnectError("401", Code.Unauthenticated);
-        })(streamReq).catch(() => undefined);
-        expect(calls).toBe(1);
+        await i(async (req) => {
+            seen.push(req.header.get("Authorization"));
+            if (seen.length === 1) throw new ConnectError("401", Code.Unauthenticated);
+            return okRes();
+        })(streamReq);
+        expect(refresh).toHaveBeenCalledTimes(1);
+        expect(seen).toEqual(["Bearer old", "Bearer new"]);
     });
 
     it("retries with the already-rotated token without refreshing again", async () => {

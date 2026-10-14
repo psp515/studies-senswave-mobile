@@ -61,7 +61,9 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
         try {
             return await next(req);
         } catch (e) {
-            if (!isUnauthenticated(e) || req.stream) throw e;
+            // Streams retry too, but only while next() rejects: that is before the response started
+            // (trailers-only error). Errors while iterating messages never reach this catch.
+            if (!isUnauthenticated(e)) throw e;
 
             // Late 401 for a request sent before another caller finished a refresh:
             // the session already holds a newer token, so retry with it instead of refreshing again.
