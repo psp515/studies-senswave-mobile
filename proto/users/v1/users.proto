@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package senswave.users.v1;
+
+option csharp_namespace = "Senswave.Contracts.Users.V1";
+
+service UsersService {
+  rpc CreateConsents(CreateConsentsRequest) returns (CreateConsentsResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+}
+
+message CreateConsentsRequest {}
+
+message CreateConsentsResponse {}
+
+message DeleteAccountRequest {}
+
+message DeleteAccountResponse {}
+
+message GetUserRequest {}
+
+message GetUserResponse {
+  string id = 1;
+  string email = 2;
+  string theme = 3;
+  string language = 4;
+  bool has_active_consent = 5;
+}
+
+message UpdateSettingsRequest {
+  string language = 1;
+  string theme = 2;
+}
+
+message UpdateSettingsResponse {}

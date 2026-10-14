@@ -1,0 +1,11 @@
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: src/api/gen
+    opt:
+      - target=ts
+      - json_types=false
+      - import_extension=none
+inputs:
+  - directory: proto
