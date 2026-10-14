@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import type { MessageInitShape } from "@bufbuild/protobuf";
+import type { JsonObject, MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate, type TimestampSchema } from "@bufbuild/protobuf/wkt";
 
 export const asRecord = (v: unknown): Record<string, unknown> =>
@@ -54,3 +54,13 @@ export const items = <T>(json: unknown, map: (item: Record<string, unknown>) => 
     const list = Array.isArray(json) ? json : asRecord(json).items;
     return Array.isArray(list) ? list.map((i) => map(asRecord(i))) : [];
 };
+
+export const boolOrUndefined = (v: unknown): boolean | undefined =>
+    typeof v === "boolean" ? v : undefined;
+
+/** A JSON object as a protobuf `Struct`; `{}` for null / non-objects. */
+export const structFromJson = (v: unknown): JsonObject => asRecord(v) as JsonObject;
+
+/** Optional proto id on a PATCH/POST body: unset omits the key, "" clears it (null). */
+export const nullableId = (v: string | undefined): string | null | undefined =>
+    v === undefined ? undefined : v || null;

@@ -1,5 +1,7 @@
 import type { RestRouteRegistryEntry } from "../RestRoute";
 import { authRoutes } from "./auth";
+import { deviceSharingRoutes } from "./deviceSharing";
+import { devicesRoutes } from "./devices";
 import { homeSharingRoutes } from "./homeSharing";
 import { homesRoutes } from "./homes";
 import { legalRoutes } from "./legal";
@@ -14,4 +16,6 @@ export const restRoutes: RestRouteRegistryEntry[] = [
     ...homesRoutes,
     ...roomsRoutes,
     ...homeSharingRoutes,
+    ...devicesRoutes,
+    ...deviceSharingRoutes,
 ];
