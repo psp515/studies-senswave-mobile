@@ -5,10 +5,9 @@ import ImageButton from "@/components/common/ImageButton";
 import Loading from "@/components/common/Loading";
 import Dropdown, { Option } from "@/components/common/Dropdown";
 import ButtonWithTextAndImage from "@/components/common/ButtonWithTextAndImage";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
-import { ListResponse } from "@/utils/httpClient";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { OperationListDto } from "@/contexts/custom/DeviceListProvider";
 import { OperationType } from "@/types/DeviceTypes";
 
 interface OperationSelectorProps {
@@ -31,7 +30,7 @@ function OperationSelector({
 }: OperationSelectorProps) {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
 
     const [loading, setLoading] = useState(false);
     const [options, setOptions] = useState<Option[]>([]);
@@ -53,15 +52,14 @@ function OperationSelector({
         if (loading) return;
 
         setLoading(true);
-        const result = await httpClient.get(
-            `v1/devices/operations/display?deviceId=${deviceId}&page=1&size=100`,
+        const result = await call(
+            () => api.operations.displayOperations({ deviceId, page: 1, size: 100 }),
+            "Failed to load operations.",
         );
 
-        if (result.isSuccess) {
-            const content = (await result.response!.json()) as ListResponse<OperationListDto>;
-
-            const operations = content.items
-                .filter((item) => filterTypes.includes(item.type))
+        if (result.isSuccess && result.data) {
+            const operations = result.data.items
+                .filter((item) => filterTypes.includes(item.type as OperationType))
                 .map((item) => ({
                     name: `${item.type} - ${item.name}`,
                     value: item.id,
@@ -69,10 +67,10 @@ function OperationSelector({
 
             operations.unshift(EmptyOption);
             setOptions(operations);
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setOptions([EmptyOption]);
         } else {
-            toast.error("Failed to load operations.");
+            toast.apiError(result);
         }
 
         setLoading(false);

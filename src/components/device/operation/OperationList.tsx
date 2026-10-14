@@ -1,7 +1,8 @@
 import Loading from "@/components/common/Loading";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
+import { OperationType } from "@/types/DeviceTypes";
 import { useToast } from "@/contexts/ToastProvider";
-import { ListResponse } from "@/utils/httpClient";
 import React, { useCallback, useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
 import Text from "@/components/common/Text";
@@ -13,7 +14,7 @@ import OperationTile from "./OperationTile";
 function OperationList() {
     const device = useDevice();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const [loading, setLoading] = useState(true);
     const [oprations, setOperations] = useState<OperationListDto[]>([]);
     const [refreshing, setRefreshing] = useState(false);
@@ -21,16 +22,27 @@ function OperationList() {
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         const refresh = async () => {
-            const result = await httpClient.get(
-                `v1/devices/operations/display?deviceId=${device.deviceId}`,
+            const result = await call(
+                () =>
+                    api.operations.displayOperations({
+                        deviceId: device.deviceId,
+                        page: 0,
+                        size: 0,
+                    }),
+                "Failed to refresh operations.",
             );
 
-            if (result.isSuccess) {
-                const data = (await result.response!.json()) as ListResponse<OperationListDto>;
-                setOperations(data.items);
+            if (result.isSuccess && result.data) {
+                setOperations(
+                    result.data.items.map((i) => ({
+                        id: i.id,
+                        name: i.name,
+                        type: i.type as OperationType,
+                    })),
+                );
                 setRefreshing(false);
             } else {
-                toast.error("Failed to refresh operations.");
+                toast.apiError(result);
                 setRefreshing(false);
             }
         };
@@ -41,20 +53,26 @@ function OperationList() {
     }, []);
 
     const getOperations = async () => {
-        const result = await httpClient.get(
-            `v1/devices/operations/display?deviceId=${device.deviceId}`,
+        const result = await call(
+            () => api.operations.displayOperations({ deviceId: device.deviceId, page: 0, size: 0 }),
+            "Failed to load operations.",
         );
 
-        if (result.isSuccess) {
-            const data = (await result.response!.json()) as ListResponse<OperationListDto>;
-            setOperations(data.items);
+        if (result.isSuccess && result.data) {
+            setOperations(
+                result.data.items.map((i) => ({
+                    id: i.id,
+                    name: i.name,
+                    type: i.type as OperationType,
+                })),
+            );
             setLoading(false);
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setOperations([]);
             setLoading(false);
             toast.info("Create some operations!");
         } else {
-            toast.error("Failed to load operations.");
+            toast.apiError(result);
             setLoading(false);
         }
     };

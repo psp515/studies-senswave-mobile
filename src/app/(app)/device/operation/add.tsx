@@ -1,7 +1,8 @@
 import Button from "@/components/common/Button";
 import OperationForm, { OperationFormHandle } from "@/components/device/operation/OperationForm";
 import { useDevice } from "@/contexts/custom/DeviceProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useRouter } from "expo-router";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
@@ -12,7 +13,7 @@ function Add() {
     const toast = useToast();
     const router = useRouter();
     const device = useDevice();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const formRef = useRef<OperationFormHandle>(null);
     const [loading, setLoading] = useState(false);
     const [isFormValid, setIsFormValid] = useState(false);
@@ -20,13 +21,21 @@ function Add() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.post("v1/devices/operations", values);
+        const result = await callSimple(() =>
+            api.operations.createOperation({
+                deviceId: values.deviceId,
+                name: values.name,
+                topic: values.topic,
+                type: values.type,
+                configuration: values.configuration,
+            }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Operation added successfully.");
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);

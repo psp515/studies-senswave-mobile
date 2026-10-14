@@ -2,9 +2,10 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
 import OperationForm from "@/components/device/operation/OperationForm";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { OperationDto } from "@/types/DeviceTypes";
+import { OperationDto, toOperationDto } from "@/types/DeviceTypes";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
@@ -12,20 +13,22 @@ import { View } from "react-native";
 function Details() {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const { operationId } = useLocalSearchParams();
     const [loading, setLoading] = useState(false);
     const [operation, setOperation] = useState<OperationDto | undefined>(undefined);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const deleteOperation = async () => {
-        const response = await httpClient.delete(`v1/devices/operations/${operationId}`);
+        if (typeof operationId !== "string") return;
 
-        if (response.isSuccess) {
+        const result = await callSimple(() => api.operations.deleteOperation({ operationId }));
+
+        if (result.isSuccess) {
             toast.success("Operation removed successfully.");
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
     };
 
@@ -35,17 +38,18 @@ function Details() {
 
     useEffect(() => {
         const getOperation = async () => {
+            if (typeof operationId !== "string") return;
             setLoading(true);
 
-            const response = await httpClient.get("v1/devices/operations/" + operationId);
+            const result = await call(
+                () => api.operations.getOperation({ operationId }),
+                "Failed to load operation details.",
+            );
 
-            if (response.isSuccess) {
-                const content = (await response.response?.json()) as OperationDto;
-                setOperation(content);
+            if (result.isSuccess && result.data) {
+                setOperation(toOperationDto(result.data));
             } else {
-                toast.error("Failed to load operation details.");
-                const content = await response.response?.text();
-                console.error("[Operation Details] Error: " + content);
+                toast.apiError(result);
             }
 
             setLoading(false);

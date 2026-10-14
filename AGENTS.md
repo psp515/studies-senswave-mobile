@@ -214,6 +214,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - `useHttpClient()` remains until all call sites are migrated.
 - Migrated: `SessionProvider` (except Google), `LegalProvider`, `UserProvider`. Provider order: Configuration > AnonymousApi > Legal > Session > Theme > HttpClient > Api > SignalR > User.
 - Migrated: homes, rooms, home sharing (PR 4).
+- Migrated: devices, dashboards, operations, widgets (PR 5).
 - Hook: `useHttpClient()` — methods: `get`, `post`, `patch`, `put`, `delete`
 - Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
 - 15s request timeout

@@ -3,12 +3,11 @@ import Input from "@/components/common/Input";
 import { useEffect, useState } from "react";
 import Text from "@/components/common/Text";
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
 import ImageButton from "@/components/common/ImageButton";
 import { useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import Dropdown, { Option } from "@/components/common/Dropdown";
-import { ListResponse } from "@/utils/httpClient";
-import { OperationListDto } from "@/contexts/custom/DeviceListProvider";
 import { useAutomation } from "@/contexts/custom/AutomationProvider";
 import { useRouter } from "expo-router";
 
@@ -34,7 +33,7 @@ export default function AutomationResultForm({
 }: AutomationResultFormProps) {
     const router = useRouter();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const devices = useDeviceList();
 
     const [resultOperationId, setResultOperationId] = useState<string>(
@@ -81,23 +80,22 @@ export default function AutomationResultForm({
             return;
         }
 
-        const result = await httpClient.get(`v1/devices/operations/display?deviceId=${deviceId}`);
+        const result = await call(() =>
+            api.operations.displayOperations({ deviceId, page: 0, size: 0 }),
+        );
 
-        if (result.isSuccess) {
-            const data = (await result.response!.json()) as ListResponse<OperationListDto>;
-            console.log("Operations for device: ", data.items);
-
-            const operationOptions = data.items.map((operation) => ({
+        if (result.isSuccess && result.data) {
+            const operationOptions = result.data.items.map((operation) => ({
                 name: operation.name,
                 value: operation.id,
             }));
             setOperations(operationOptions);
             setResultOperationId("None");
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setOperations([]);
             toast.info("Create some operations!");
         } else {
-            toast.httpError(result);
+            toast.apiError(result);
         }
         setLoading(false);
     };

@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import Input from "@/components/common/Input";
 import Text from "@/components/common/Text";
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
+import { OperationType } from "@/types/DeviceTypes";
 import ImageButton from "@/components/common/ImageButton";
 import { useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import Dropdown, { Option } from "@/components/common/Dropdown";
 import SwitchDropdown from "@/components/common/SwitchDropdown";
-import { ListResponse } from "@/utils/httpClient";
 import { OperationListDto } from "@/contexts/custom/DeviceListProvider";
 import { useAutomation } from "@/contexts/custom/AutomationProvider";
 import { ConditionType, OperationToConditionMap } from "@/types/AutomationsTypes";
@@ -38,7 +39,7 @@ export default function AutomationConditionForm({
 }: AutomationConditionFormProps) {
     const router = useRouter();
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const devices = useDeviceList();
     const automationDetails = useAutomation();
 
@@ -108,17 +109,25 @@ export default function AutomationConditionForm({
             return;
         }
 
-        const result = await httpClient.get(`v1/devices/operations/display?deviceId=${deviceId}`);
+        const result = await call(
+            () => api.operations.displayOperations({ deviceId, page: 0, size: 0 }),
+            "Failed to load operations.",
+        );
 
-        if (result.isSuccess) {
-            const data = (await result.response!.json()) as ListResponse<OperationListDto>;
-            setOperations(data.items);
+        if (result.isSuccess && result.data) {
+            setOperations(
+                result.data.items.map((i) => ({
+                    id: i.id,
+                    name: i.name,
+                    type: i.type as OperationType,
+                })),
+            );
             setOperationId("None");
-        } else if (result.statusCode === 404) {
+        } else if (isNotFound(result)) {
             setOperations([]);
             toast.info("Create some operations!");
         } else {
-            toast.error("Failed to load operations.");
+            toast.apiError(result);
         }
         setLoading(false);
     };
