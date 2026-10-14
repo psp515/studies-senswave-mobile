@@ -35,8 +35,9 @@ describe("auth REST routes", () => {
         });
     });
 
-    it("confirmEmail uses query string", () => {
+    it("confirmEmail is a GET with a query string (MapIdentityApi)", () => {
         const r = route("confirmEmail");
+        expect(r.method).toBe("GET");
         const req = create(ConfirmEmailRequestSchema, { userId: "u 1", code: "c&d" });
         expect(r.path(req as never)).toBe("v1/auth/confirmEmail?userId=u%201&code=c%26d");
         expect(r.body).toBeUndefined();

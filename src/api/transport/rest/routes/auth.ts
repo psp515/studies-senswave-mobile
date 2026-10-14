@@ -37,7 +37,8 @@ export const authRoutes = defineRoutes(AuthService, {
         response: accessToken,
     },
     confirmEmail: {
-        method: "POST",
+        // MapIdentityApi maps confirmEmail as GET with query parameters.
+        method: "GET",
         path: (req) =>
             `v1/auth/confirmEmail${query({
                 userId: req.userId,
