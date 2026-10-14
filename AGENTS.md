@@ -212,6 +212,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
   maps RPCs to REST routes in `src/api/transport/rest/routes/`. Wrap calls with `call()` /
   `callSimple()` from `src/api/call.ts` to get `Result<T>` / `SimpleResult`.
 - `useHttpClient()` remains until all call sites are migrated.
+- Migrated: `SessionProvider` (except Google), `LegalProvider`, `UserProvider`. Provider order: Configuration > AnonymousApi > Legal > Session > Theme > HttpClient > Api > SignalR > User.
 - Hook: `useHttpClient()` — methods: `get`, `post`, `patch`, `put`, `delete`
 - Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
 - 15s request timeout
@@ -236,7 +237,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 ### Consent flow
 
 1. User logs in → redirected to `/consents`
-2. App fetches `v1/users` → checks `hasActiveConsent`
+2. App fetches `users.getUser` via `useApi()` → checks `hasActiveConsent`
 3. If false → show Terms + Privacy → `POST v1/users/consents`
 4. If API returns 403 at any point → logout (consent expired/revoked)
 5. Legal docs served from API (versioned, with summary + full content in markdown)

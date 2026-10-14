@@ -1,7 +1,8 @@
 import React from "react";
 import { Result, SimpleResult } from "@/utils/result";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useHttpClient } from "../HttpClientProvider";
+import { call, callSimple } from "@/api/call";
+import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
 import { useTheme } from "../ThemeProvider";
 import { useSession } from "../SessionProvider";
@@ -11,14 +12,6 @@ export enum ThemeMode {
     Dark = "dark",
     Default = "default",
 }
-
-type UserResponse = {
-    Id: string;
-    email: string;
-    theme: ThemeMode;
-    language: string;
-    hasActiveConsent: boolean;
-};
 
 interface UserData {
     language: string;
@@ -50,7 +43,7 @@ const UserContext = createContext<UserProperties>({
 export const useUser = () => useContext(UserContext);
 
 export const UserProvider = ({ children }: any) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const theme = useTheme();
     const session = useSession();
@@ -76,62 +69,70 @@ export const UserProvider = ({ children }: any) => {
     const updateTheme = async (internalTheme: ThemeMode) => {
         console.debug("[User provider] Updating theme...");
 
-        const result = await httpClient.patch("v1/users/settings", {
-            theme: internalTheme,
-        });
+        const result = await callSimple(
+            () => api.users.updateSettings({ theme: internalTheme }),
+            "Failed to update theme.",
+        );
 
         if (result.isSuccess) {
             setUserData({ ...userData, theme: internalTheme });
             updateThemeInternal(internalTheme);
             return SimpleResult.success();
         } else {
-            toast.httpError(result);
-            return SimpleResult.failure("Failed to update theme.");
+            toast.apiError(result);
+            return SimpleResult.failure("Failed to update theme.", result.error);
         }
     };
 
     const updateLanguage = async (language: string) => {
         console.debug("[User provider] Updating language...");
 
-        const result = await httpClient.patch("v1/user/settings", {
-            language: language,
-        });
+        const result = await callSimple(
+            () => api.users.updateSettings({ language }),
+            "Failed to update language.",
+        );
 
         if (result.isSuccess) {
             setUserData({ ...userData, language: language });
             return SimpleResult.success();
         } else {
-            toast.httpError(result);
-            return SimpleResult.failure("Failed to update language.");
+            toast.apiError(result);
+            return SimpleResult.failure("Failed to update language.", result.error);
         }
     };
 
     const makeConsents = async () => {
         console.debug("[User provider] Making consents...");
 
-        const result = await httpClient.post("v1/users/consents", {});
+        const result = await callSimple(
+            () => api.users.createConsents({}),
+            "Failed to make consents.",
+        );
 
         if (result.isSuccess) {
             console.debug("[User provider] Consents made.");
             return SimpleResult.success();
         } else {
-            toast.httpError(result);
-            return SimpleResult.failure("Failed to make consents.");
+            toast.apiError(result);
+            return SimpleResult.failure("Failed to make consents.", result.error);
         }
     };
 
     const getUserData = async () => {
-        const response = await httpClient.get("v1/users");
+        const result = await call(() => api.users.getUser({}), "Failed to update.");
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             console.debug("[User Provider] User data loaded.");
 
-            const data: UserResponse = await response.response?.json();
-            updateThemeInternal(data.theme);
+            const data = result.data!;
+            const themeMode = Object.values(ThemeMode).includes(data.theme as ThemeMode)
+                ? (data.theme as ThemeMode)
+                : ThemeMode.Default;
+            updateThemeInternal(themeMode);
             const name = data.email.charAt(0).toUpperCase() + data.email.split("@")[0].slice(1);
 
             const userData: UserData = {
-                theme: data.theme,
+                theme: themeMode,
                 language: data.language,
                 email: data.email,
                 name: name,
@@ -142,24 +143,27 @@ export const UserProvider = ({ children }: any) => {
 
             return Result.success<UserData>(userData);
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
 
-            return Result.failure<UserData>("Failed to update.");
+            return Result.failure<UserData>("Failed to update.", result.error);
         }
     };
 
     const removeUserAccount = async () => {
         try {
-            const response = await httpClient.delete("v1/users/account");
+            const result = await callSimple(
+                () => api.users.deleteAccount({}),
+                "Failed to remove account.",
+            );
 
-            if (response.statusCode === 204) {
+            if (result.isSuccess) {
                 console.debug("[Session Provider] Account removed successfully.");
                 session.logout();
                 return SimpleResult.success();
             }
 
-            toast.httpError(response);
-            return SimpleResult.failure("Failed to remove account.");
+            toast.apiError(result);
+            return SimpleResult.failure("Failed to remove account.", result.error);
         } catch (error) {
             console.error(`[Session Provider] Unexpected exception when removing account ${error}`);
 
