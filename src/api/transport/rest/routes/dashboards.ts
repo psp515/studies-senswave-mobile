@@ -1,6 +1,16 @@
 import { DashboardsService } from "@/api/gen/devices/v1/dashboards_pb";
 import { defineRoutes } from "../RestRoute";
-import { asRecord, empty, idResponse, items, query, seg, str, structFromJson } from "../converters";
+import {
+    asRecord,
+    empty,
+    idResponse,
+    items,
+    query,
+    required,
+    seg,
+    str,
+    structFromJson,
+} from "../converters";
 
 export const dashboardsRoutes = defineRoutes(DashboardsService, {
     createDashboard: {
@@ -42,7 +52,7 @@ export const dashboardsRoutes = defineRoutes(DashboardsService, {
     displayDashboards: {
         method: "GET",
         path: (req) =>
-            `v1/devices/dashboards/display${query({ deviceId: seg(req.deviceId, "deviceId") })}`,
+            `v1/devices/dashboards/display${query({ deviceId: required(req.deviceId, "deviceId") })}`,
         response: (json) => ({
             items: items(json, (d) => ({
                 id: str(d.id),

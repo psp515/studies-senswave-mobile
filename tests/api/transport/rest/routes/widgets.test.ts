@@ -139,3 +139,15 @@ describe("widgets REST routes", () => {
         );
     });
 });
+
+describe("widgets query parameter encoding", () => {
+    it("displayWidgets encodes the deviceId once and rejects empty", () => {
+        const r = route("displayWidgets");
+        expect(r.path(create(DisplayWidgetsRequestSchema, { deviceId: "a b" }) as never)).toBe(
+            "v1/devices/widgets/display?deviceId=a%20b",
+        );
+        expect(() => r.path(create(DisplayWidgetsRequestSchema) as never)).toThrow(
+            expect.objectContaining({ code: Code.InvalidArgument }),
+        );
+    });
+});

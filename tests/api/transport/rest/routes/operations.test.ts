@@ -83,3 +83,15 @@ describe("operations REST routes", () => {
         ).toThrow(expect.objectContaining({ code: Code.InvalidArgument }));
     });
 });
+
+describe("operations query parameter encoding", () => {
+    it("displayOperations encodes the deviceId once and rejects empty", () => {
+        const r = route("displayOperations");
+        expect(r.path(create(DisplayOperationsRequestSchema, { deviceId: "a b" }) as never)).toBe(
+            "v1/devices/operations/display?deviceId=a%20b",
+        );
+        expect(() => r.path(create(DisplayOperationsRequestSchema) as never)).toThrow(
+            expect.objectContaining({ code: Code.InvalidArgument }),
+        );
+    });
+});

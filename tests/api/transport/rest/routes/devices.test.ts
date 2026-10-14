@@ -206,3 +206,15 @@ describe("devices REST routes", () => {
         );
     });
 });
+
+describe("devices query parameter encoding", () => {
+    it("displayDevices encodes the homeId once and rejects empty", () => {
+        const r = route("displayDevices");
+        expect(r.path(create(DisplayDevicesRequestSchema, { homeId: "a b" }) as never)).toBe(
+            "v1/devices/display?homeId=a%20b",
+        );
+        expect(() => r.path(create(DisplayDevicesRequestSchema) as never)).toThrow(
+            expect.objectContaining({ code: Code.InvalidArgument }),
+        );
+    });
+});

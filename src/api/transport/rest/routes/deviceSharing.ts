@@ -1,11 +1,12 @@
 import { SharingService } from "@/api/gen/devices/v1/sharing_pb";
 import { defineRoutes } from "../RestRoute";
-import { empty, items, query, seg, str, strOrUndefined } from "../converters";
+import { empty, items, query, required, seg, str, strOrUndefined } from "../converters";
 
 export const deviceSharingRoutes = defineRoutes(SharingService, {
     getSharings: {
         method: "GET",
-        path: (req) => `v1/devices/sharings${query({ deviceId: seg(req.deviceId, "deviceId") })}`,
+        path: (req) =>
+            `v1/devices/sharings${query({ deviceId: required(req.deviceId, "deviceId") })}`,
         response: (json) => ({
             items: items(json, (s) => ({
                 sharingId: strOrUndefined(s.sharingId),

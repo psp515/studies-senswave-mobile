@@ -9,6 +9,7 @@ import {
     items,
     nullableId,
     query,
+    required,
     seg,
     str,
     strOrUndefined,
@@ -101,7 +102,7 @@ export const devicesRoutes = defineRoutes(DevicesService, {
         method: "GET",
         path: (req) =>
             `v1/devices/display${query({
-                homeId: seg(req.homeId, "homeId"),
+                homeId: required(req.homeId, "homeId"),
                 page: req.page || undefined,
                 size: req.size || undefined,
             })}`,

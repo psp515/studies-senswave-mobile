@@ -77,3 +77,15 @@ describe("deviceSharing REST routes", () => {
         ).toThrow(expect.objectContaining({ code: Code.InvalidArgument }));
     });
 });
+
+describe("deviceSharing query parameter encoding", () => {
+    it("getSharings encodes the deviceId once and rejects empty", () => {
+        const r = route("getSharings");
+        expect(r.path(create(GetSharingsRequestSchema, { deviceId: "a b" }) as never)).toBe(
+            "v1/devices/sharings?deviceId=a%20b",
+        );
+        expect(() => r.path(create(GetSharingsRequestSchema) as never)).toThrow(
+            expect.objectContaining({ code: Code.InvalidArgument }),
+        );
+    });
+});

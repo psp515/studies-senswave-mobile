@@ -150,3 +150,15 @@ describe("dashboards REST routes", () => {
         ).toThrow(expect.objectContaining({ code: Code.InvalidArgument }));
     });
 });
+
+describe("dashboards query parameter encoding", () => {
+    it("displayDashboards encodes the deviceId once and rejects empty", () => {
+        const r = route("displayDashboards");
+        expect(r.path(create(DisplayDashboardsRequestSchema, { deviceId: "a b" }) as never)).toBe(
+            "v1/devices/dashboards/display?deviceId=a%20b",
+        );
+        expect(() => r.path(create(DisplayDashboardsRequestSchema) as never)).toThrow(
+            expect.objectContaining({ code: Code.InvalidArgument }),
+        );
+    });
+});

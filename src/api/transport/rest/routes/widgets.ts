@@ -8,6 +8,7 @@ import {
     idResponse,
     items,
     query,
+    required,
     seg,
     str,
     structFromJson,
@@ -49,7 +50,7 @@ export const widgetsRoutes = defineRoutes(WidgetsService, {
     displayWidgets: {
         method: "GET",
         path: (req) =>
-            `v1/devices/widgets/display${query({ deviceId: seg(req.deviceId, "deviceId") })}`,
+            `v1/devices/widgets/display${query({ deviceId: required(req.deviceId, "deviceId") })}`,
         response: (json) => ({
             items: items(json, (g) => {
                 const op = asRecord(g.operation);

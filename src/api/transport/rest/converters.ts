@@ -19,6 +19,12 @@ export const seg = (v: string, name = "path parameter"): string => {
     return encodeURIComponent(v);
 };
 
+/** Validates a required query value; query() does the encoding, so it must stay raw. */
+export const required = (v: string, name = "parameter"): string => {
+    if (!v) throw new ConnectError(`Missing ${name}`, Code.InvalidArgument);
+    return v;
+};
+
 export const empty = (): Record<string, never> => ({});
 
 export const timestampFromIso = (

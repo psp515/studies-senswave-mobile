@@ -1,6 +1,16 @@
 import { OperationsService } from "@/api/gen/devices/v1/operations_pb";
 import { defineRoutes } from "../RestRoute";
-import { asRecord, empty, idResponse, items, query, seg, str, structFromJson } from "../converters";
+import {
+    asRecord,
+    empty,
+    idResponse,
+    items,
+    query,
+    required,
+    seg,
+    str,
+    structFromJson,
+} from "../converters";
 
 export const operationsRoutes = defineRoutes(OperationsService, {
     createOperation: {
@@ -38,7 +48,7 @@ export const operationsRoutes = defineRoutes(OperationsService, {
         method: "GET",
         path: (req) =>
             `v1/devices/operations/display${query({
-                deviceId: seg(req.deviceId, "deviceId"),
+                deviceId: required(req.deviceId, "deviceId"),
                 page: req.page || undefined,
                 size: req.size || undefined,
             })}`,
