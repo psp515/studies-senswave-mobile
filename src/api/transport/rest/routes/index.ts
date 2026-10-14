@@ -13,7 +13,7 @@ import { roomsRoutes } from "./rooms";
 import { usersRoutes } from "./users";
 import { widgetsRoutes } from "./widgets";
 
-// AccountService and LiveUpdatesService have no REST routes: Account is unused by the app; live updates use SignalR in REST mode (see LiveUpdateSource).
+// AccountService and LiveUpdatesService have no REST routes: Account is unused by the app; live updates use SignalR in REST mode (see createLiveUpdateSource in src/api/liveUpdates).
 export const restRoutes: RestRouteRegistryEntry[] = [
     ...usersRoutes,
     ...legalRoutes,

@@ -1,5 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef } from "react";
-import { useSignalR } from "../SignalRProvider";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import type { LiveUpdate } from "@/api/gen/liveupdates/v1/liveupdates_pb";
+import { isPermissionDenied } from "@/api/call";
+import { useApi } from "../ApiProvider";
+import { useSession } from "../SessionProvider";
 import { useHomes } from "./HomeProvider";
 import { useDevice } from "../custom/DeviceProvider";
 import { useDeviceList } from "../custom/DeviceListProvider";
@@ -17,7 +20,8 @@ const LiveUpdateContext = createContext<LiveUpdateProperties>({
 export const useLiveUpdate = () => useContext(LiveUpdateContext);
 
 export const LiveUpdateProvider = ({ children }: any) => {
-    const signalR = useSignalR();
+    const api = useApi();
+    const session = useSession();
     const home = useHomes();
     const device = useDevice();
     const deviceList = useDeviceList();
@@ -40,10 +44,19 @@ export const LiveUpdateProvider = ({ children }: any) => {
         Promise.resolve(),
     );
 
+    const [retry, setRetry] = useState(0);
+
+    const homeRef = useRef(home);
+    homeRef.current = home;
+    const deviceRef = useRef(device);
+    deviceRef.current = device;
+    const deviceListRef = useRef(deviceList);
+    deviceListRef.current = deviceList;
+
     const widgetUpdate = async (deviceId: string) => {
         try {
             console.info("[Live Update] Widget update for device:", deviceId);
-            await device.smartRefresh(deviceId);
+            await deviceRef.current.smartRefresh(deviceId);
         } catch (error) {
             console.error("[Live Update] Error executing deviceTileActionUpdate", error);
         }
@@ -52,62 +65,70 @@ export const LiveUpdateProvider = ({ children }: any) => {
     const homeDataSourceUpdate = async (dataSourceId: string, state: string) => {
         try {
             console.info("[Live Update] DataSource update in home.");
-            home.updateHomeDataSourceState(dataSourceId, state);
+            homeRef.current.updateHomeDataSourceState(dataSourceId, state);
         } catch (error) {
             console.error("[Live Update] Error executing dataSourceStateUpdate", error);
         }
     };
 
-    useEffect(() => {
-        if (signalR.data.connection) {
-            signalR.data.connection.off("Update");
-
-            signalR.data.connection.on("Update", (updateType: string, data: any) => {
-                console.info(`[Live Update] Received update: ${updateType}`);
-
-                if (updateType === "deviceTileActionUpdate") {
-                    try {
-                        const deviceId = data.deviceId;
-                        const callback = devicesCallbacks.current.get(deviceId);
-                        if (callback) {
-                            callback(data);
-                        }
-                    } catch (error) {
-                        console.error(
-                            "[Live Update] Error executing deviceTileActionUpdate",
-                            error,
-                        );
+    const dispatch = (u: LiveUpdate) => {
+        const update = u.update;
+        console.info(`[Live Update] Received update: ${update.case}`);
+        switch (update.case) {
+            case "deviceTile":
+                try {
+                    const callback = devicesCallbacks.current.get(update.value.deviceId);
+                    if (callback) {
+                        callback({ deviceId: update.value.deviceId } as unknown as string);
                     }
-                } else if (updateType === "widgetsActionUpdate") {
-                    widgetUpdate(data.deviceId);
-                } else if (updateType === "dataSourceStateUpdate") {
-                    homeDataSourceUpdate(data.dataSourceId, data.state);
-                } else if (updateType === "devicePresenceUpdate") {
-                    deviceList.refreshDevice(data.deviceId);
-                } else {
-                    console.info(`[Live Update] Unknown update type: ${updateType}`);
+                } catch (error) {
+                    console.error("[Live Update] Error executing deviceTileActionUpdate", error);
                 }
-            });
-
-            signalR.data.connection.on(
-                "AccessNotGrantedToHome",
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                (homeId: string, message: string) => {
-                    console.error("[Live Update] Access not granted to home:", homeId);
-                },
-            );
+                break;
+            case "widgets":
+                widgetUpdate(update.value.deviceId);
+                break;
+            case "dataSourceState":
+                homeDataSourceUpdate(update.value.dataSourceId, update.value.state);
+                break;
+            case "devicePresence":
+                deviceListRef.current.refreshDevice(update.value.deviceId);
+                break;
+            case "initialized":
+                console.info("[Live Update] Subscription initialized.");
+                break;
+            default:
+                console.info("[Live Update] Unknown update.");
         }
+    };
+    const dispatchRef = useRef(dispatch);
+    dispatchRef.current = dispatch;
 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [signalR.data.connection]);
+    const homeId = home.current?.id;
+    const authenticated = session.session.authenticated;
+    const source = api.liveUpdateSource;
 
     useEffect(() => {
-        if (home.current && signalR.data.connection) {
-            console.info(`[Live Update] Observing updates for new home: ${home.current.id}`);
-            signalR.data.connection.invoke("Initialize", home.current.id);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [home.current, signalR.data.connection]);
+        if (!authenticated || !homeId) return;
+
+        console.info(`[Live Update] Observing updates for home: ${homeId}`);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const unsubscribe = source.subscribe(
+            homeId,
+            (u) => dispatchRef.current(u),
+            (err) => {
+                console.error("[Live Update] Subscription error:", err.message);
+                if (!isPermissionDenied(err)) {
+                    timer = setTimeout(() => setRetry((r) => r + 1), 15000);
+                }
+            },
+        );
+
+        return () => {
+            unsubscribe();
+            if (timer) clearTimeout(timer);
+        };
+    }, [homeId, authenticated, source, retry]);
 
     const value = {
         addDeviceTileCallback,

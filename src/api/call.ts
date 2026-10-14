@@ -51,3 +51,10 @@ export const callSimple = async (
 /** True when a failed result carries a NotFound code. */
 export const isNotFound = (result: { error?: ApiError }): boolean =>
     result.error?.code === Code.NotFound;
+
+/** True when an error (or a failed result's error) carries a PermissionDenied code. */
+export const isPermissionDenied = (e: ApiError | { error?: ApiError } | undefined): boolean => {
+    if (!e) return false;
+    const err = "code" in e ? e : e.error;
+    return err?.code === Code.PermissionDenied;
+};

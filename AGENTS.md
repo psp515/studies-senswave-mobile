@@ -25,7 +25,7 @@ Senswave is a Smart Home platform for DIY devices.
 | Routing | Expo Router (file-based) |
 | Language | TypeScript 5.9 (strict mode) |
 | State | Context API + custom hooks |
-| Real-time | SignalR (`@microsoft/signalr` 8.x) |
+| Real-time | `LiveUpdateSource`: SignalR (`@microsoft/signalr` 8.x) in REST mode, gRPC stream otherwise |
 | Auth storage | `expo-secure-store` |
 | Backend | .NET Minimal API — modular monolith (`Senswave.sln`) |
 
@@ -77,8 +77,7 @@ src/
   contexts/
     ConfigurationProvider.tsx # API URL, SignalR URL, version check
     SessionProvider.tsx       # Auth state + all auth flows
-    ApiProvider.tsx           # Generated Connect clients (useApi) + token refresh
-    SignalRProvider.tsx        # SignalR hub connection
+    ApiProvider.tsx           # Generated Connect clients (useApi) + token refresh + liveUpdateSource
     ThemeProvider.tsx
     MenuProvider.tsx
     ModalProvider.tsx
@@ -209,7 +208,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - `useApi()` from `ApiProvider` is the only API layer. It exposes Connect clients generated from
   backend protos (`src/api/gen`, never edit). Transport chosen by `EXPO_PUBLIC_TRANSPORT_MODE`; the
   REST transport maps RPCs to REST routes in `src/api/transport/rest/routes/`.
-- Provider order: Configuration > AnonymousApi > Legal > Session > Theme > Api > SignalR > User.
+- Provider order: Configuration > AnonymousApi > Legal > Session > Theme > Api > User (LiveUpdateProvider sits in the authenticated `(app)` layout).
 - Wrap every call with `call()` / `callSimple()` from `src/api/call.ts` to get `Result<T>` /
   `SimpleResult`. Show failures with `toast.apiError(result)` (bare; fixed wording goes into
   `call()`); use `isNotFound(result)` for 404-as-empty cases. No `Code` imports in UI.
@@ -278,32 +277,28 @@ These are the REST routes behind the generated clients (called via `useApi()`, n
 
 ---
 
-## Real-time (SignalR)
+## Real-time (LiveUpdateSource)
 
-Hub endpoint: `signalr/liveupdates/live`
+`useApi().liveUpdateSource` is a transport-neutral `LiveUpdateSource` (`src/api/liveUpdates/`) built in
+`ApiProvider` from the effective transport mode:
 
-- Connects when user is authenticated
-- Auth via `accessTokenFactory` returning current `accessToken`
-- On failure: refreshes token, retries after 15s
-- Context: `useSignalR()` → `{ data: { connection? } }`
+- **Rest** � SignalR source: hub `signalr/liveupdates/live`, `accessTokenFactory` reads the latest
+  `accessToken`, invokes `Initialize(homeId)`, maps `"Update"` events to `LiveUpdate` messages.
+- **Grpc / GrpcWeb** � `LiveUpdatesService.Subscribe` server stream (`homeReferenceId`).
 
-### Invoked methods (client → server)
+`LiveUpdateProvider` subscribes while authenticated with an active home; on any source error it
+resubscribes after 15 s, except `PermissionDenied` (SignalR `AccessNotGrantedToHome`), which is only
+logged (no redirect).
 
-| Method | Args | When |
-|--------|------|------|
-| `Initialize` | `homeId: string` | On active home change — subscribes to that home's updates |
+### Updates (`LiveUpdate.update.case`)
 
-### Received events (server → client)
-
-Listened on `"Update"` event with signature `(updateType: string, data: any)`:
-
-| `updateType` | `data` shape | Effect |
-|---|---|---|
-| `deviceTileActionUpdate` | `{ deviceId }` | Calls per-device registered callback (dashboard tile refresh) |
-| `widgetsActionUpdate` | `{ deviceId }` | Triggers `device.smartRefresh(deviceId)` |
-| `dataSourceStateUpdate` | `{ dataSourceId, state }` | Updates DataSource state in active home |
-
-Also: `"AccessNotGrantedToHome"` event `(homeId, message)` — logged, no redirect.
+| case (SignalR `updateType`) | Effect |
+|---|---|
+| `deviceTile` (`deviceTileActionUpdate`) | Calls per-device registered callback (dashboard tile refresh) |
+| `widgets` (`widgetsActionUpdate`) | Triggers `device.smartRefresh(deviceId)` |
+| `dataSourceState` (`dataSourceStateUpdate`) | Updates DataSource state in active home |
+| `devicePresence` (`devicePresenceUpdate`) | `deviceList.refreshDevice(deviceId)` |
+| `initialized` | Logged only |
 
 Context: `useLiveUpdate()` — exposes `addDeviceTileCallback(deviceId, cb)` and `addHomeDataSourceCallback(cb)`.
 

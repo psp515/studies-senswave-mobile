@@ -16,7 +16,6 @@ import { ApiProvider } from "@/contexts/ApiProvider";
 import { AnonymousApiProvider } from "@/contexts/AnonymousApiProvider";
 import { UserProvider } from "@/contexts/domain/UserProvider";
 import { LegalProvider } from "@/contexts/domain/LegalProvider";
-import { SignalRProvider } from "@/contexts/SignalRProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
@@ -60,11 +59,9 @@ export default function RootLayout() {
                                             <SessionProvider>
                                                 <ThemeProvider>
                                                     <ApiProvider>
-                                                        <SignalRProvider>
-                                                            <UserProvider>
-                                                                <RootLayoutInner />
-                                                            </UserProvider>
-                                                        </SignalRProvider>
+                                                        <UserProvider>
+                                                            <RootLayoutInner />
+                                                        </UserProvider>
                                                     </ApiProvider>
                                                 </ThemeProvider>
                                             </SessionProvider>
