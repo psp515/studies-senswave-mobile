@@ -173,4 +173,48 @@ describe("authInterceptor", () => {
         })(streamReq).catch(() => undefined);
         expect(calls).toBe(1);
     });
+
+    it("retries with the already-rotated token without refreshing again", async () => {
+        // A request sent with "old" fails late, after another caller already finished a refresh.
+        let current = "old";
+        const refresh = jest.fn(async () => "newer");
+        const tokens: string[] = [];
+        const i = createAuthInterceptor({
+            getAccessToken: () => current,
+            refresh,
+            logout: jest.fn(),
+            onRefreshFailed: jest.fn(),
+        });
+        const res = await i(async (req) => {
+            const t = req.header.get("Authorization")!;
+            tokens.push(t);
+            if (t === "Bearer old") {
+                current = "new";
+                throw new ConnectError("401", Code.Unauthenticated);
+            }
+            return okRes();
+        })(unaryReq());
+        expect(res).toBeTruthy();
+        expect(refresh).not.toHaveBeenCalled();
+        expect(tokens).toEqual(["Bearer old", "Bearer new"]);
+    });
+
+    it("treats a throwing refresh as a failed refresh", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+        const onRefreshFailed = jest.fn();
+        const i = createAuthInterceptor({
+            getAccessToken: () => "old",
+            refresh: async () => {
+                throw new Error("offline");
+            },
+            logout: jest.fn(),
+            onRefreshFailed,
+        });
+        const err = await i(async () => {
+            throw new ConnectError("401", Code.Unauthenticated);
+        })(unaryReq()).catch((e) => e);
+        expect((err as ConnectError).code).toBe(Code.Unauthenticated);
+        expect(onRefreshFailed).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith("[Api] Refresh threw", expect.any(Error));
+    });
 });

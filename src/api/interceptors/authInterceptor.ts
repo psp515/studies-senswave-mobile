@@ -9,7 +9,10 @@ export interface AuthInterceptorDeps {
     /** Refreshes the session; resolves with the new access token or null when refresh failed. */
     refresh: () => Promise<string | null>;
     logout: () => void;
-    /** Called once per failed refresh so the provider can count failures and toast. */
+    /**
+     * Called when a refresh fails, once per waiting caller (concurrent callers share one refresh
+     * but each reports its own failure), so the provider can count failures and toast.
+     */
     onRefreshFailed: () => void;
 }
 
@@ -30,7 +33,10 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
         if (!inflightRefresh) {
             inflightRefresh = deps
                 .refresh()
-                .catch(() => null)
+                .catch((e: unknown) => {
+                    console.warn("[Api] Refresh threw", e);
+                    return null;
+                })
                 .finally(() => {
                     inflightRefresh = null;
                 });
@@ -43,19 +49,27 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
             return next(req);
         }
 
-        const token = deps.getAccessToken();
-        if (!token) {
+        const sentToken = deps.getAccessToken();
+        if (!sentToken) {
             deps.logout();
             console.error("[Api] User is not authenticated.");
             throw new ApiError({ code: Code.Unauthenticated, message: "Not authenticated" });
         }
 
-        req.header.set("Authorization", `Bearer ${token}`);
+        req.header.set("Authorization", `Bearer ${sentToken}`);
 
         try {
             return await next(req);
         } catch (e) {
             if (!isUnauthenticated(e) || req.stream) throw e;
+
+            // Late 401 for a request sent before another caller finished a refresh:
+            // the session already holds a newer token, so retry with it instead of refreshing again.
+            const current = deps.getAccessToken();
+            if (current && current !== sentToken) {
+                req.header.set("Authorization", `Bearer ${current}`);
+                return next(req);
+            }
 
             const newToken = await refreshOnce();
             if (!newToken) {
