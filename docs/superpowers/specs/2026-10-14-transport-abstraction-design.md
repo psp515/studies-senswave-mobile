@@ -199,8 +199,11 @@ cancelStream(streamId): void
 
 ## Section 3 — Interceptors, auth, errors, OpenTelemetry
 
-Order (outer → inner): `otel` → `timeout` → `auth` → `legal` → `errors`. Built in `ApiProvider`
-and applied to all transports via the Connect interceptor option.
+Order (outer → inner): `otel` → `auth` → `legal` → `errors`. Built in `ApiProvider` and passed to
+every transport through its `interceptors` option (connect-web has it natively; the REST and native
+transports run `runUnaryCall` / `runStreamingCall` from `@connectrpc/connect/protocol`, which
+applies interceptors and the deadline). Timeout is therefore a transport option
+(`defaultTimeoutMs`), not an interceptor.
 
 ### auth
 
@@ -220,8 +223,9 @@ and applied to all transports via the Connect interceptor option.
 
 ### timeout
 
-Default 15 s for unary calls (`timeoutMs` call option), none for streams.
-`ConfigurationProvider.isAppCompatibleWithApi()` keeps its raw 5 s `executeTimeout` on `GET api/version`.
+`defaultTimeoutMs: 15000` on every transport for unary calls; a call may override it with the
+`timeoutMs` call option. Streams have no deadline. `ConfigurationProvider.isAppCompatibleWithApi()`
+keeps its raw 5 s `executeTimeout` on `GET api/version`.
 
 ### errors
 
@@ -230,6 +234,7 @@ Normalises every failure into:
 ```ts
 class ApiError extends Error {
   code: Code;              // Connect code
+  message: string;         // gRPC status message / REST problem `detail` or `title`
   httpStatus?: number;     // REST only
   errors: Error[];         // common.v1.Error
   traceId?: string;
@@ -245,9 +250,14 @@ class ApiError extends Error {
 ### SessionProvider and LegalProvider
 
 - All raw `executeTimeout` calls to `v1/auth/*` become `api.auth.*`. Login "email not confirmed"
-  detection reads `ApiError.errors[0].code === "NotAllowed"` in both modes (REST maps the Identity
-  401 body to that code inside the `auth` REST route; gRPC `AuthService` already returns it in
-  `senswave-errors-bin`). The implementation plan verifies both.
+  detection reads `ApiError.code === Code.Unauthenticated && ApiError.message === "NotAllowed"`
+  in both modes: the gRPC `AuthService` throws `Unauthenticated` with the Identity `SignInResult`
+  string as status message; the REST route maps the Identity 401 problem `detail` field to
+  `ApiError.message`.
+- Identity REST validation failures (register, reset password) return a 400
+  `ValidationProblemDetails` whose `errors` is an object `{ [code]: string[] }`, while Senswave
+  endpoints return `ErrorProblemDetails` whose `errors` is an array. The REST error parser accepts
+  both and produces `common.v1.Error[]` (type `ERROR_TYPE_VALIDATION` for the Identity shape).
 - Google login stays on the existing REST call and is hidden when `transportMode !== "Rest"`.
 - `LegalProvider` uses `api.legal.getTermsAndConditions()` / `getPrivacyPolicy()`.
 
