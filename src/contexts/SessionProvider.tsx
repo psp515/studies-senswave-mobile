@@ -2,8 +2,13 @@ import React, { FC, PropsWithChildren, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import { createContext, useContext, useEffect } from "react";
+import { call, callSimple } from "@/api/call";
+import { identityValidationFailure, isServerFailure, loginFailure } from "@/api/authErrors";
+import type { AccessTokenResponse } from "@/api/gen/users/v1/auth_pb";
 import { executeTimeout } from "@/utils/httpClient";
 import { Result, SimpleResult } from "@/utils/result";
+import { Code } from "@connectrpc/connect";
+import { useAnonymousApi } from "./AnonymousApiProvider";
 import { useConfiguration } from "./ConfigurationProvider";
 
 const RememberMeName: string = "rememberMe";
@@ -16,6 +21,12 @@ type Tokens = {
     refreshToken: string;
     accessToken: string;
 };
+
+const toTokens = (r: AccessTokenResponse): Tokens => ({
+    tokenType: r.tokenType,
+    accessToken: r.accessToken,
+    refreshToken: r.refreshToken,
+});
 
 type Session = {
     loading: boolean;
@@ -86,65 +97,46 @@ export const useSession = () => useContext(SessionContext);
 export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
     const router = useRouter();
     const configuration = useConfiguration();
+    const api = useAnonymousApi();
 
     const [session, setSession] = useState<Session>(Initialized);
     const [rememberMe, setRememberMe] = useState(false);
     const [maintenance, setMaintenance] = useState(false);
 
     const resendEmailConfirmationMessage = async (email: string): Promise<SimpleResult> => {
-        const url = configuration.getApiUrl("v1/auth/resendConfirmationEmail");
-
-        const body = JSON.stringify({ email });
-
-        const options: RequestInit = {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                accept: "application/json",
-            },
-            body,
-        };
-
-        const result = await executeTimeout(url, options);
+        const result = await callSimple(
+            () => api.auth.resendConfirmationEmail({ email }),
+            "Failed to resend confirmation email",
+        );
 
         if (result.isSuccess) {
             console.info("[Session Provider] Confirmation email was resend.");
-            return SimpleResult.success();
+            return result;
         }
 
-        if (result.statusCode === 500) {
+        if (result.error && isServerFailure(result.error)) {
             console.error("[Session Provider] Server not available to handle request.");
-            return SimpleResult.failure("Server not available");
+            return SimpleResult.failure("Server not available", result.error);
         }
 
         console.error("[Session Provider] Failed to resend confirmation email.");
-        return SimpleResult.failure("Failed to resend confirmation email");
+        return result;
     };
 
     const confirmEmail = async (userId: string, code: string): Promise<SimpleResult> => {
         try {
-            const url = configuration.getApiUrl(
-                `v1/auth/confirmEmail?userId=${userId}&code=${code}`,
+            const result = await callSimple(
+                () => api.auth.confirmEmail({ userId, code }),
+                "Failed to confirm email.",
             );
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    accept: "application/json",
-                },
-            };
-            const result = await executeTimeout(url, options);
 
             if (result.isSuccess) {
                 console.debug("[Session Provider] Email confirmed successfully.");
-                return SimpleResult.success();
+                return result;
             }
 
-            console.debug(
-                `[Session Provider] Confirm email failed with status code ${result.statusCode}`,
-            );
-
-            return SimpleResult.failure("Failed to confirm email.");
+            console.debug(`[Session Provider] Confirm email failed: ${result.error?.code}`);
+            return SimpleResult.failure("Failed to confirm email.", result.error);
         } catch (error) {
             console.error(`[Session Provider] Confirm email error: ${error}`);
             return SimpleResult.failure("Confirm email failed unexpectedly.");
@@ -199,45 +191,16 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
         try {
             setSession({ ...session, loading: true });
 
-            const url = configuration.getApiUrl("v1/auth/login");
-
-            const body = JSON.stringify({ email, password });
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    accept: "application/json",
-                },
-                body,
-            };
-
-            const result = await executeTimeout(url, options);
+            const result = await call(() => api.auth.login({ email, password }));
 
             if (result.isSuccess) {
-                const data: Tokens = await result.response!.json();
-                successfulLogin(data);
+                successfulLogin(toTokens(result.data!));
                 return Result.success<boolean>(false);
             }
 
             setSession(Unauthenticated);
-            console.debug(`[Session Provider] Login failed with status code ${result.statusCode}`);
-
-            if (result.statusCode === 401) {
-                const data: { detail: string } = await result.response!.json();
-
-                if (data.detail === "NotAllowed") {
-                    console.debug("[Session Provider] Email not confiremd.");
-                    return Result.failureWithData<boolean>("Please confirm your email.", true);
-                }
-
-                console.debug("[Session Provider] Invalid email or password.");
-                return Result.failureWithData<boolean>("Invalid email or password.", false);
-            }
-
-            if (result.statusCode === 500) {
-                console.debug("[Session Provider] Server not available.");
-                return Result.failureWithData<boolean>("Server not available.", false);
-            }
+            console.debug(`[Session Provider] Login failed: ${result.error?.code}`);
+            return loginFailure(result.error);
         } catch (error) {
             console.error(`[Session Provider] Login error: ${error}`);
             setSession(Unauthenticated);
@@ -294,23 +257,14 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
                 return null;
             }
 
-            const payload = { refreshToken: session.refreshToken };
+            const result = await call(() =>
+                api.auth.refresh({ refreshToken: session.refreshToken }),
+            );
 
-            const url = configuration.getApiUrl("v1/auth/refresh");
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            };
-
-            const response = await executeTimeout(url, options);
-
-            if (response.statusCode === 200) {
+            if (result.isSuccess) {
                 console.debug("[Session Provider] Token refreshed successfully");
 
-                const data: Tokens = await response.response!.json();
+                const data = toTokens(result.data!);
 
                 await SecureStore.setItemAsync(AccessTokenName, data.accessToken);
                 await SecureStore.setItemAsync(RefreshTokenName, data.refreshToken);
@@ -324,16 +278,16 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
                 return data.accessToken;
             }
 
-            if (response.statusCode === 401) {
+            if (result.error?.code === Code.Unauthenticated) {
                 setSession(Unauthenticated);
                 router.replace("start");
                 console.error("[Session Provider] Refresh token invalid, logging out.");
                 return null;
             }
 
-            // Network/server error — preserve session, let caller decide
+            // Network/server error - preserve session, let caller decide
             setSession({ ...session, loading: false });
-            console.warn(`[Session Provider] Refresh network error: ${response.statusCode}`);
+            console.warn(`[Session Provider] Refresh error: ${result.error?.code}`);
             return null;
         } catch (error) {
             setSession({ ...session, loading: false });
@@ -353,54 +307,15 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
         try {
             setSession({ ...session, loading: true });
 
-            const url = configuration.getApiUrl("v1/auth/register");
-
-            const body = JSON.stringify({ email, password });
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    accept: "application/json",
-                },
-                body,
-            };
-
-            const result = await executeTimeout(url, options);
+            const result = await callSimple(() => api.auth.register({ email, password }));
 
             if (result.isSuccess) {
                 console.debug("[Session Provider] User registered successfully.");
-                return SimpleResult.success();
+                return result;
             }
 
-            console.debug(
-                `[Session Provider] Registration failed with status code ${result.statusCode}`,
-            );
-
-            if (result.statusCode === 400) {
-                try {
-                    const text = await result.response!.text();
-                    const errorJson = JSON.parse(text);
-                    if (errorJson.errors) {
-                        for (const [key, messages] of Object.entries(errorJson.errors)) {
-                            if (key === "DuplicateUserName") continue;
-
-                            if (Array.isArray(messages) && messages.length > 0) {
-                                return SimpleResult.failure(messages[0]);
-                            }
-                        }
-                    }
-                } catch (parseError) {
-                    console.warn(
-                        "[Session Provider] Failed to parse validation error response.",
-                        parseError,
-                    );
-                }
-                return SimpleResult.failure("Something went wrong.");
-            }
-
-            if (result.statusCode === 500) {
-                return SimpleResult.failure("Server not available.");
-            }
+            console.debug(`[Session Provider] Registration failed: ${result.error?.code}`);
+            return identityValidationFailure(result.error, "Registration failed unexpectedly.");
         } catch (error) {
             console.error(`[Session Provider] Registration error: ${error}`);
         }
@@ -411,27 +326,19 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
     const forgotPassword = async (email: string): Promise<SimpleResult> => {
         try {
             setSession({ ...session, loading: true });
-            const url = configuration.getApiUrl("v1/auth/forgotPassword");
-            const body = JSON.stringify({ email });
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    accept: "application/json",
-                },
-                body,
-            };
 
-            const response = await executeTimeout(url, options);
+            const result = await callSimple(
+                () => api.auth.forgotPassword({ email }),
+                "Forgot password failed unexpectedly.",
+            );
 
-            if (response.statusCode === 200) {
+            if (result.isSuccess) {
                 console.debug("[Session Provider] Forgot password email sent successfully.");
-                return SimpleResult.success();
+                return result;
             }
 
-            console.error(
-                `[Session Provider] Forgot password failed with status code: ${response.statusCode}`,
-            );
+            console.error(`[Session Provider] Forgot password failed: ${result.error?.code}`);
+            return SimpleResult.failure("Forgot password failed unexpectedly.", result.error);
         } catch (error) {
             console.error(
                 `[Session Provider] Unexpected exception when sending forgot password email ${error}`,
@@ -449,49 +356,18 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
     ): Promise<SimpleResult> => {
         try {
             setSession({ ...session, loading: true });
-            const url = configuration.getApiUrl("v1/auth/resetPassword");
-            const body = JSON.stringify({ email, resetCode, newPassword: password });
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    accept: "application/json",
-                },
-                body,
-            };
 
-            const response = await executeTimeout(url, options);
-
-            if (response.statusCode === 200) {
-                console.debug("[Session Provider] Password reset successfully.");
-                return SimpleResult.success();
-            }
-
-            if (response.statusCode === 400) {
-                try {
-                    const text = await response.response!.text();
-                    const errorJson = JSON.parse(text);
-                    if (errorJson.errors) {
-                        for (const [key, messages] of Object.entries(errorJson.errors)) {
-                            if (key === "DuplicateUserName") continue;
-
-                            if (Array.isArray(messages) && messages.length > 0) {
-                                return SimpleResult.failure(messages[0]);
-                            }
-                        }
-                    }
-                } catch (parseError) {
-                    console.warn(
-                        "[Session Provider] Failed to parse validation error response.",
-                        parseError,
-                    );
-                }
-                return SimpleResult.failure("Something went wrong.");
-            }
-
-            console.error(
-                `[Session Provider] Reset password failed with status code: ${response.statusCode}`,
+            const result = await callSimple(() =>
+                api.auth.resetPassword({ email, resetCode, newPassword: password }),
             );
+
+            if (result.isSuccess) {
+                console.debug("[Session Provider] Password reset successfully.");
+                return result;
+            }
+
+            console.error(`[Session Provider] Reset password failed: ${result.error?.code}`);
+            return identityValidationFailure(result.error, "Reset password failed unexpectedly.");
         } catch (error) {
             console.error(
                 `[Session Provider] Unexpected exception when resetting password ${error}`,
@@ -536,30 +412,15 @@ export const SessionProvider: FC<PropsWithChildren> = ({ children }) => {
                 return;
             }
 
-            const payload = { refreshToken: refreshToken };
+            const result = await call(() => api.auth.refresh({ refreshToken }));
 
-            const url = configuration.getApiUrl("v1/auth/refresh");
-            const options: RequestInit = {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            };
-
-            const response = await executeTimeout(url, options);
-
-            if (response.statusCode === 200) {
+            if (result.isSuccess) {
                 console.debug("[Session Provider] Token refreshed successfully");
-
-                const data: Tokens = await response.response!.json();
-                await successfulLogin(data);
+                await successfulLogin(toTokens(result.data!));
                 return;
             }
 
-            console.error(
-                `[Session Provider] Refresh failed with status code: ${response.statusCode}`,
-            );
+            console.error(`[Session Provider] Refresh failed: ${result.error?.code}`);
 
             setSession({ ...session, loading: false });
         } catch (error) {
