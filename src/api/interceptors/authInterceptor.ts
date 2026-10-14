@@ -47,7 +47,7 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
         if (!token) {
             deps.logout();
             console.error("[Api] User is not authenticated.");
-            throw new ConnectError("Not authenticated", Code.Unauthenticated);
+            throw new ApiError({ code: Code.Unauthenticated, message: "Not authenticated" });
         }
 
         req.header.set("Authorization", `Bearer ${token}`);

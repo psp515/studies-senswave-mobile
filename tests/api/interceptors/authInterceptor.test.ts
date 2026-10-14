@@ -3,6 +3,7 @@ import { createContextValues } from "@connectrpc/connect";
 import type { DescMethod, DescService } from "@bufbuild/protobuf";
 import { UsersService } from "@/api/gen/users/v1/users_pb";
 import { AuthService } from "@/api/gen/users/v1/auth_pb";
+import { ApiError } from "@/api/errors";
 import { createAuthInterceptor } from "@/api/interceptors/authInterceptor";
 
 const unaryReq = (
@@ -78,7 +79,8 @@ describe("authInterceptor", () => {
             onRefreshFailed: jest.fn(),
         });
         const err = await i(async () => okRes())(unaryReq()).catch((e) => e);
-        expect((err as ConnectError).code).toBe(Code.Unauthenticated);
+        expect(ApiError.is(err)).toBe(true);
+        expect((err as ApiError).code).toBe(Code.Unauthenticated);
         expect(logout).toHaveBeenCalled();
     });
 
