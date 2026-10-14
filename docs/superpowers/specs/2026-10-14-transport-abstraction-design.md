@@ -188,6 +188,11 @@ cancelStream(streamId): void
   identity on `ByteArray`. Binary trailers (`*-bin`) cross the bridge base64-encoded.
 - JS side: `toBinary(method.input, message)` → module → `fromBinary(method.output, bytes)`.
   Streams are adapted to `AsyncIterable`; `AbortSignal` maps to `cancelStream`.
+- Channel lifetime equals `ApiProvider` lifetime: one `ManagedChannel` (one HTTP/2 connection)
+  is created per base URL and reused for every unary call and stream. Keepalive is enabled
+  (`keepAliveTime` 30 s, `keepAliveWithoutCalls` true). `closeChannel` runs only when the base
+  URL or mode changes. gRPC-Web and REST rely on the platform fetch connection pool instead;
+  no HTTP/2 guarantee exists there.
 - Target is `host:port` derived from the base URL; `tls` from the scheme.
   `insecureSkipVerify` is allowed only when `EXPO_PUBLIC_ENVIRONMENT=Development`
   (backend dev certificate is self-signed).
