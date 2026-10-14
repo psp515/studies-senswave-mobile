@@ -2,9 +2,11 @@ import { View, StyleSheet } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/contexts/ToastProvider";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
+import { toDevice } from "@/types/DeviceTypes";
 import { useLiveUpdate } from "@/contexts/domain/LiveUpdateProvider";
-import { Device, useDeviceList } from "@/contexts/custom/DeviceListProvider";
+import { useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import Icon from "@/components/common/Icon";
 import Text from "@/components/common/Text";
 
@@ -18,7 +20,7 @@ function DisplayDeviceTile({ deviceId, icon, tile }: DisplayDeviceTileProps) {
     const toast = useToast();
     const homes = useHomes();
     const devices = useDeviceList();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const liveUpdate = useLiveUpdate();
 
     const unit: string = tile.configuration?.unit ?? "";
@@ -29,15 +31,15 @@ function DisplayDeviceTile({ deviceId, icon, tile }: DisplayDeviceTileProps) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const updateCallback = async (message: string) => {
         try {
-            const result = await httpClient.get(`v1/devices/${deviceId}/display`);
+            const result = await call(() => api.devices.displayDevice({ deviceId }));
 
             if (result.isSuccess) {
-                const response = (await result.response!.json()) as Device;
+                const response = toDevice(result.data!.device!);
                 const val = response.tile.value;
                 setDisplayValue(val !== null && val !== undefined ? String(val) : "—");
                 console.debug("[Display Device Tile] Device tile updated.");
                 devices.updateDeviceOperation(response);
-            } else if (result.statusCode === 404) {
+            } else if (isNotFound(result)) {
                 toast.error("Failed to update device tile. Please refresh.");
             }
         } catch (error) {

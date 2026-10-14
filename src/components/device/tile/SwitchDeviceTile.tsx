@@ -2,9 +2,12 @@ import { View, StyleSheet } from "react-native";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/contexts/ToastProvider";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple, isNotFound } from "@/api/call";
+import { toProtoValue } from "@/api/json";
+import { toDevice } from "@/types/DeviceTypes";
 import { useLiveUpdate } from "@/contexts/domain/LiveUpdateProvider";
-import { Device, useDeviceList } from "@/contexts/custom/DeviceListProvider";
+import { useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import Icon from "@/components/common/Icon";
 import { Switch } from "@/components/common/Switch";
 
@@ -19,7 +22,7 @@ function SwitchDeviceTile({ deviceId, icon, tile, disablePress }: SwitchDeviceTi
     const toast = useToast();
     const homes = useHomes();
     const devices = useDeviceList();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const liveUpdate = useLiveUpdate();
     const [processing, setProcessing] = useState(false);
 
@@ -28,16 +31,16 @@ function SwitchDeviceTile({ deviceId, icon, tile, disablePress }: SwitchDeviceTi
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const updateCallback = async (message: string) => {
         try {
-            const result = await httpClient.get(`v1/devices/${deviceId}/display`);
+            const result = await call(() => api.devices.displayDevice({ deviceId }));
 
             if (result.isSuccess) {
-                const response = (await result.response!.json()) as Device;
+                const response = toDevice(result.data!.device!);
 
                 const value = response.tile.value === true;
                 setIsOn(value);
                 console.debug("[Switch Device Tile] Device tile updated.");
                 devices.updateDeviceOperation(response);
-            } else if (result.statusCode === 404) {
+            } else if (isNotFound(result)) {
                 toast.error("Failed to update device tile. Please refresh.");
             }
         } catch (error) {
@@ -65,18 +68,16 @@ function SwitchDeviceTile({ deviceId, icon, tile, disablePress }: SwitchDeviceTi
         try {
             setProcessing(true);
 
-            const payload = {
-                value: !isOn,
-            };
-
-            const result = await httpClient.post(`v1/devices/${deviceId}/tile/action`, payload);
+            const result = await callSimple(() =>
+                api.devices.deviceTileAction({ deviceId, value: toProtoValue(!isOn) }),
+            );
 
             if (result.isSuccess) {
                 console.debug(
                     "[Switch Device Tile] Device state updated on server. Event should arrive to refresh device status.",
                 );
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch {
             console.error("[Switch Device Tile] Failed to update device state.");
