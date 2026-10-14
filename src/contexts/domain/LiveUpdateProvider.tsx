@@ -65,7 +65,7 @@ export const LiveUpdateProvider = ({ children }: any) => {
     const homeDataSourceUpdate = async (dataSourceId: string, state: string) => {
         try {
             console.info("[Live Update] DataSource update in home.");
-            homeRef.current.updateHomeDataSourceState(dataSourceId, state);
+            await homeRef.current.updateHomeDataSourceState(dataSourceId, state);
         } catch (error) {
             console.error("[Live Update] Error executing dataSourceStateUpdate", error);
         }
@@ -79,20 +79,34 @@ export const LiveUpdateProvider = ({ children }: any) => {
                 try {
                     const callback = devicesCallbacks.current.get(update.value.deviceId);
                     if (callback) {
-                        callback({ deviceId: update.value.deviceId } as unknown as string);
+                        Promise.resolve(
+                            callback({ deviceId: update.value.deviceId } as unknown as string),
+                        ).catch((error) =>
+                            console.error(
+                                "[Live Update] Error executing deviceTileActionUpdate",
+                                error,
+                            ),
+                        );
                     }
                 } catch (error) {
                     console.error("[Live Update] Error executing deviceTileActionUpdate", error);
                 }
                 break;
             case "widgets":
-                widgetUpdate(update.value.deviceId);
+                widgetUpdate(update.value.deviceId).catch((error) =>
+                    console.error("[Live Update] Error executing widgetsActionUpdate", error),
+                );
                 break;
             case "dataSourceState":
-                homeDataSourceUpdate(update.value.dataSourceId, update.value.state);
+                homeDataSourceUpdate(update.value.dataSourceId, update.value.state).catch((error) =>
+                    console.error("[Live Update] Error executing dataSourceStateUpdate", error),
+                );
                 break;
             case "devicePresence":
-                deviceListRef.current.refreshDevice(update.value.deviceId);
+                Promise.resolve(deviceListRef.current.refreshDevice(update.value.deviceId)).catch(
+                    (error) =>
+                        console.error("[Live Update] Error executing devicePresenceUpdate", error),
+                );
                 break;
             case "initialized":
                 console.info("[Live Update] Subscription initialized.");
@@ -105,6 +119,10 @@ export const LiveUpdateProvider = ({ children }: any) => {
     dispatchRef.current = dispatch;
 
     const homeId = home.current?.id;
+    // The server-side subscription snapshot includes the home's data-source group, so a changed
+    // data source requires resubscribing. Depend on the id only: `home.current` is replaced on
+    // every state update (e.g. dataSourceState) and would resubscribe on each live update.
+    const dataSourceId = home.current?.dataSource?.id;
     const authenticated = session.session.authenticated;
     const source = api.liveUpdateSource;
 
@@ -128,7 +146,7 @@ export const LiveUpdateProvider = ({ children }: any) => {
             unsubscribe();
             if (timer) clearTimeout(timer);
         };
-    }, [homeId, authenticated, source, retry]);
+    }, [homeId, dataSourceId, authenticated, source, retry]);
 
     const value = {
         addDeviceTileCallback,
