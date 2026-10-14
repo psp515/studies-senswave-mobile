@@ -1,24 +1,32 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
 import { useToast } from "@/contexts/ToastProvider";
-import { AutomationDto } from "@/types/AutomationsTypes";
+import {
+    AutomationConditionDto,
+    AutomationDto,
+    AutomationResultDto,
+    connectorFromString,
+    toAutomationDto,
+    toConditionMessage,
+    toResultMessage,
+} from "@/types/AutomationsTypes";
+import { call, callSimple } from "@/api/call";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import AutomationForm, { AutomationFormHandle } from "@/components/automations/AutomationForm";
 import { useAutomationList } from "@/contexts/custom/AutomationListProvider";
 
-const automationUrl: string = "v1/automations/";
-
 function Details() {
-    const { automationId } = useLocalSearchParams();
+    const { automationId: automationIdParam } = useLocalSearchParams<{ automationId: string }>();
+    const id = automationIdParam ?? "";
     const [automation, setAutomation] = useState<AutomationDto | undefined>(undefined);
     const [loading, setLoading] = useState<boolean>(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isFormDirty, setIsFormDirty] = useState(false);
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const automations = useAutomationList();
     const formRef = useRef<AutomationFormHandle>(null);
@@ -26,16 +34,17 @@ function Details() {
     useEffect(() => {
         const getAutomation = async () => {
             setLoading(true);
-            const response = await httpClient.get(`${automationUrl}${automationId}`);
+            const result = await call(
+                () => api.automations.getAutomation({ automationId: id }),
+                "Failed to load automation details.",
+            );
 
-            if (response.isSuccess) {
-                const content = (await response.response?.json()) as AutomationDto;
+            if (result.isSuccess) {
+                const content = toAutomationDto(result.data!.automation!);
                 console.log("Fetched Automation: ", content);
                 setAutomation(content);
             } else {
-                toast.error("Failed to load automation details.");
-                const content = await response.response?.text();
-                console.error("[Device Details] Error: " + content);
+                toast.apiError(result);
             }
             setLoading(false);
         };
@@ -46,16 +55,16 @@ function Details() {
 
     const deleteAutomation = async () => {
         console.log("[AutomationDetails] Delete Automation trigger");
-        const response = await httpClient.delete(`${automationUrl}${automationId}`);
+        const result = await callSimple(
+            () => api.automations.deleteAutomation({ automationId: id }),
+            "Failed to delete automation.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Automation deleted successfully.");
             await automations.refresh();
         } else {
-            toast.error("Failed to delete automation.");
-
-            const data = await response.response?.text();
-            console.error(data);
+            toast.apiError(result);
         }
     };
 
@@ -67,21 +76,34 @@ function Details() {
         console.log("[Automation Details] Submitting values: ", values);
 
         if ("isEnabled" in values) {
-            const changeStateMsg = { isEnabled: values.isEnabled };
-            await httpClient.put(`${automationUrl}${automationId}/state`, changeStateMsg);
-            delete values.isEnabled;
+            await callSimple(() =>
+                api.automations.automationState({
+                    automationId: id,
+                    isEnabled: values.isEnabled,
+                }),
+            );
         }
 
-        const response = await httpClient.patch(`${automationUrl}${automationId}`, values);
+        const result = await callSimple(
+            () =>
+                api.automations.updateAutomation({
+                    automationId: id,
+                    name: values.name ?? "",
+                    icon: values.icon ?? "",
+                    conditionConnector: connectorFromString(values.conditionConnector),
+                    conditions: ((values.conditions ?? []) as AutomationConditionDto[]).map(
+                        toConditionMessage,
+                    ),
+                    results: ((values.results ?? []) as AutomationResultDto[]).map(toResultMessage),
+                }),
+            "Failed to update automation.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Automation updated successfully.");
             await automations.refresh();
         } else {
-            toast.error("Failed to update automation.");
-
-            const data = await response.response?.text();
-            console.error("[Automation Details] Error: " + data);
+            toast.apiError(result);
         }
     };
 

@@ -1,16 +1,15 @@
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useLocalSearchParams } from "expo-router";
 import AutomationResultForm from "@/components/automations/results/AutomationResultForm";
-
-const automationResultUrl: string = "v1/automations/results";
 
 export default function AddAutomationResult() {
     const automationId = useLocalSearchParams().automationId as string;
     console.log("Automation id: ", automationId);
 
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const edit = automationId !== undefined;
 
     const addToExistingAutomation = async (values: any) => {
@@ -21,15 +20,20 @@ export default function AddAutomationResult() {
             values,
         );
 
-        const response = await httpClient.put(`${automationResultUrl}/${automationId}`, values);
+        const result = await callSimple(
+            () =>
+                api.automations.putResultToAutomation({
+                    automationId,
+                    operationId: values.operationId,
+                    value: String(values.value),
+                }),
+            "Failed to add automation result.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Automation result added successfully.");
         } else {
-            toast.error("Failed to add automation result.");
-
-            const data = await response.response?.text();
-            console.error("[AutomationResultAdd] Error: " + data);
+            toast.apiError(result);
         }
     };
 

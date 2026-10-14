@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeProvider";
 import Icon from "@/components/common/Icon";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useAutomationList } from "@/contexts/custom/AutomationListProvider";
 import { useRouter } from "expo-router";
@@ -11,7 +12,6 @@ import { shadowStyles } from "@/styles/shadowStyles";
 import Text from "@/components/common/Text";
 
 const borderRadius = 12;
-const automationDeleteUrl = "v1/automations/";
 
 interface AutomationTileProps {
     automationId: string;
@@ -30,7 +30,7 @@ export default function AutomationTile({
     isPressDisabled,
 }: AutomationTileProps) {
     const theme = useTheme();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const automations = useAutomationList();
     const router = useRouter();
@@ -38,13 +38,13 @@ export default function AutomationTile({
 
     const deleteAutomation = async () => {
         console.log("[AutomationTile] Delete Automation trigger");
-        const response = await httpClient.delete(`${automationDeleteUrl}${automationId}`);
+        const result = await callSimple(() => api.automations.deleteAutomation({ automationId }));
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Automation deleted successfully.");
             await automations.refresh();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
     };
 

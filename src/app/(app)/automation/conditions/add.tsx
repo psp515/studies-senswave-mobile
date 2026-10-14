@@ -1,16 +1,16 @@
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
+import { conditionTypeFromString } from "@/types/AutomationsTypes";
 import { useLocalSearchParams } from "expo-router";
 import AutomationConditionForm from "@/components/automations/conditions/AutomationConditionForm";
-
-const automationConditionUrl: string = "v1/automations/conditions";
 
 export default function AddAutomationCondition() {
     const automationId = useLocalSearchParams().automationId as string;
     console.log("Automation id: ", automationId);
 
     const toast = useToast();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const edit = automationId !== undefined;
 
     const addToExistingAutomation = async (values: any) => {
@@ -21,15 +21,21 @@ export default function AddAutomationCondition() {
             values,
         );
 
-        const response = await httpClient.put(`${automationConditionUrl}/${automationId}`, values);
+        const result = await callSimple(
+            () =>
+                api.automations.putConditionToAutomation({
+                    automationId,
+                    operationId: values.operationId,
+                    conditionType: conditionTypeFromString(values.conditionType),
+                    conditionConfiguration: values.conditionConfiguration,
+                }),
+            "Failed to add automation condition.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Automation condition added successfully.");
         } else {
-            toast.error("Failed to add automation condition.");
-
-            const data = await response.response?.text();
-            console.error("[AutomationConditionAdd] Error: " + data);
+            toast.apiError(result);
         }
     };
 
