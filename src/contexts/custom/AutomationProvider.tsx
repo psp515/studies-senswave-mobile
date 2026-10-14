@@ -7,15 +7,14 @@ import React, {
     useState,
     useRef,
 } from "react";
-import { useHttpClient } from "../HttpClientProvider";
+import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
+import { call, isNotFound } from "@/api/call";
 import {
-    AutomationDto,
     AutomationResultDto,
     AutomationConditionDto,
+    toAutomationDto,
 } from "@/types/AutomationsTypes";
-
-const automationUrl: string = "v1/automations/";
 
 interface AutomationContextProps {
     automationId?: string;
@@ -52,7 +51,7 @@ const AutomationContext = createContext<AutomationContextProps>({
 export const useAutomation = () => useContext(AutomationContext);
 
 const AutomationProvider: FC<PropsWithChildren> = ({ children }) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [results, setResults] = useState<AutomationResultDto[]>([]);
@@ -107,19 +106,20 @@ const AutomationProvider: FC<PropsWithChildren> = ({ children }) => {
 
         const getAutomation = async () => {
             setLoading(true);
-            const result = await httpClient.get(`${automationUrl}${automationIdRef.current}`);
+            const automationId = automationIdRef.current!;
+            const result = await call(() => api.automations.getAutomation({ automationId }));
 
             if (result.isSuccess) {
-                const content = (await result.response?.json()) as AutomationDto;
+                const content = toAutomationDto(result.data!.automation!);
                 setResults(content.results ?? []);
                 setConditions(content.conditions ?? []);
-            } else if (result.statusCode === 404) {
+            } else if (isNotFound(result)) {
                 setResults([]);
                 setConditions([]);
                 console.info("[AutomationProvider] No automation found.");
             } else {
                 console.error("[AutomationProvider] Failed to fetch automation.", result);
-                toast.httpError(result);
+                toast.apiError(result);
                 setResults([]);
                 setConditions([]);
             }
