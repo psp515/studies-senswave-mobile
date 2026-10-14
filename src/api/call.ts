@@ -1,10 +1,24 @@
+import { Code } from "@connectrpc/connect";
 import { Result, SimpleResult } from "@/utils/result";
-import { toApiError } from "./errors";
+import { toApiError, type ApiError } from "./errors";
 
-const messageOf = (e: unknown, fallback: string) => {
+export const ConnectionErrorMessage = "Connection error. Please check your internet connection.";
+
+/**
+ * User-facing text: the first backend error description, else a connection message for
+ * Unavailable / DeadlineExceeded, else the caller fallback. ApiError.message (problem title or
+ * transport text) is never shown to users, only logged.
+ */
+const messageOf = (e: unknown, fallback: string): { err: ApiError; text: string } => {
     const err = toApiError(e);
-    const text = err.firstDescription();
-    return { err, text: text && text.trim() ? text : fallback };
+    console.debug(`[Api] Call failed (${Code[err.code]}): ${err.message}`);
+
+    const description = err.errors[0]?.description?.trim();
+    if (description) return { err, text: description };
+    if (err.code === Code.Unavailable || err.code === Code.DeadlineExceeded) {
+        return { err, text: ConnectionErrorMessage };
+    }
+    return { err, text: fallback };
 };
 
 /** Runs an api client call and folds the outcome into Result<T>. Never throws. */

@@ -134,10 +134,23 @@ const errorsFromTrailers = (metadata: Headers): { errors: SenswaveError[]; trace
     return { errors, traceId: metadata.get(TraceIdTrailerKey) ?? undefined };
 };
 
+/**
+ * runUnaryCall passes every rejection through ConnectError.from(), so an ApiError thrown by an
+ * interceptor (or a ConnectError raised deeper) arrives wrapped as ConnectError(Unknown, cause).
+ * Unwrap one level so the original code, errors and httpStatus survive.
+ */
+const unwrapConnectCause = (reason: unknown): unknown =>
+    reason instanceof ConnectError &&
+    reason.code === Code.Unknown &&
+    reason.cause instanceof ConnectError
+        ? reason.cause
+        : reason;
+
 export const toApiError = (reason: unknown): ApiError => {
     if (ApiError.is(reason)) return reason;
+    if (reason instanceof ConnectError && ApiError.is(reason.cause)) return reason.cause;
 
-    const ce = ConnectError.from(reason);
+    const ce = ConnectError.from(unwrapConnectCause(reason));
 
     if (isRestProblem(ce.cause)) {
         const parsed = restProblemToErrors(ce.cause.body);

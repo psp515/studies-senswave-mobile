@@ -102,3 +102,25 @@ describe("toApiError", () => {
         expect(e.firstDescription()).toBe("desc");
     });
 });
+
+describe("toApiError unwrapping (runUnaryCall wraps rejections in ConnectError.from)", () => {
+    it("returns an ApiError found on ConnectError.cause unchanged", () => {
+        const inner = new ApiError({ code: Code.NotFound, message: "nf", httpStatus: 404 });
+        const wrapped = ConnectError.from(inner);
+        expect(wrapped.code).toBe(Code.Unknown);
+        expect(toApiError(wrapped)).toBe(inner);
+    });
+
+    it("unwraps one level of ConnectError cause carrying a RestProblem", () => {
+        const problem: RestProblem = {
+            httpStatus: 404,
+            body: { errors: [{ code: "UserNotFound", type: 3, description: "No user" }] },
+        };
+        const inner = new ConnectError("Not Found", Code.NotFound, undefined, undefined, problem);
+        const outer = new ConnectError("wrapped", Code.Unknown, undefined, undefined, inner);
+        const e = toApiError(outer);
+        expect(e.code).toBe(Code.NotFound);
+        expect(e.httpStatus).toBe(404);
+        expect(e.errors[0].code).toBe("UserNotFound");
+    });
+});
