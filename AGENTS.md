@@ -329,6 +329,8 @@ Context: `useLiveUpdate()` — exposes `addDeviceTileCallback(deviceId, cb)` and
 | `EXPO_PUBLIC_API_GOOGLE_CLIENT_ID` | Google OAuth API client ID | — |
 | `EXPO_PUBLIC_MINIMAL_API_VERSION` | Minimum compatible API version | `1.0.0` |
 | `EXPO_PUBLIC_CONTACT_EMAIL` | Support email shown in app | `contact@senswave.net` |
+| `EXPO_PUBLIC_TRANSPORT_MODE` | API transport: Rest, Grpc (Android native) or GrpcWeb; must match backend Transport:Mode | `Rest` |
+| `SENSWAVE_BACKEND_PROTO_DIR` | Local backend proto dir for `npm run proto:sync` (dev tooling only) | — |
 
 Create `.env` from `.env.template` before first run.
 

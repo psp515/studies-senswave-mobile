@@ -1,5 +1,7 @@
+import { resolveTransportMode, TransportMode } from "@/api/transport/TransportMode";
 import { executeTimeout } from "@/utils/httpClient";
-import { createContext, FC, PropsWithChildren, useContext, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createContext, FC, PropsWithChildren, useContext, useEffect, useState } from "react";
 
 interface VersionResponse {
     version: string;
@@ -10,6 +12,8 @@ interface ConfigurationContextType {
     getApiUrl: (path: string) => URL;
     getSignalRUrl: (path: string) => URL;
     overrideUrl: (url: string) => void;
+    transportMode: TransportMode;
+    overrideTransportMode: (mode: TransportMode | null) => void;
     isDevelopment: () => boolean;
     isAppCompatibleWithApi: () => Promise<boolean>;
 }
@@ -31,6 +35,10 @@ const ConfigurationContext = createContext<ConfigurationContextType>({
     overrideUrl(): void {
         console.error("[Configuration Context] Not initialized.");
     },
+    transportMode: "Rest",
+    overrideTransportMode(): void {
+        console.error("[Configuration Context] Not initialized.");
+    },
     isDevelopment(): boolean {
         console.error("[Configuration Context] Not initialized.");
         return false;
@@ -45,10 +53,40 @@ export const useConfiguration = () => useContext(ConfigurationContext);
 
 export const ConfigurationProvider: FC<PropsWithChildren> = ({ children }) => {
     const [urlOverride, setUrlOverride] = useState<string>("");
+    const TransportOverrideKey = "configuration.transportModeOverride";
+    const [transportOverride, setTransportOverride] = useState<string | null>(null);
 
     const isDevelopment = (): boolean => {
         return process.env.EXPO_PUBLIC_ENVIRONMENT === "Development";
     };
+
+    useEffect(() => {
+        AsyncStorage.getItem(TransportOverrideKey)
+            .then((v) => setTransportOverride(v))
+            .catch(() => undefined);
+    }, []);
+
+    const overrideTransportMode = (mode: TransportMode | null) => {
+        if (!isDevelopment()) {
+            console.warn(
+                "[Configuration Context] Cannot override transport mode in production mode.",
+            );
+            return;
+        }
+        setTransportOverride(mode);
+        if (mode) {
+            AsyncStorage.setItem(TransportOverrideKey, mode).catch(() => undefined);
+        } else {
+            AsyncStorage.removeItem(TransportOverrideKey).catch(() => undefined);
+        }
+        console.info(`[Configuration Context] Transport mode override: ${mode ?? "none"}`);
+    };
+
+    const transportMode = resolveTransportMode(
+        process.env.EXPO_PUBLIC_TRANSPORT_MODE,
+        transportOverride,
+        isDevelopment(),
+    );
 
     const overrideUrl = (url: string) => {
         const devEnv = isDevelopment();
@@ -165,6 +203,8 @@ export const ConfigurationProvider: FC<PropsWithChildren> = ({ children }) => {
         getApiUrl: getApiUrl,
         getSignalRUrl: getSignalRUrl,
         overrideUrl: overrideUrl,
+        transportMode: transportMode,
+        overrideTransportMode: overrideTransportMode,
         isDevelopment: isDevelopment,
         isAppCompatibleWithApi: isAppCompatibleWithApi,
     };
