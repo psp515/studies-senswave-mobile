@@ -10,24 +10,24 @@ Senswave is a Smart Home platform for DIY devices.
 
 ## Home Roles (RBAC)
 
-| Role    | Permissions                    |
-| ------- | ------------------------------ |
-| Display | View and act in Home           |
-| Manage  | Display + manage Home settings |
+| Role | Permissions |
+|------|-------------|
+| Display | View and act in Home |
+| Manage | Display + manage Home settings |
 
 ---
 
 ## Tech Stack
 
-| Layer        | Technology                                           |
-| ------------ | ---------------------------------------------------- |
-| Mobile       | React Native 0.81.5 + Expo ~54                       |
-| Routing      | Expo Router (file-based)                             |
-| Language     | TypeScript 5.9 (strict mode)                         |
-| State        | Context API + custom hooks                           |
-| Real-time    | SignalR (`@microsoft/signalr` 8.x)                   |
-| Auth storage | `expo-secure-store`                                  |
-| Backend      | .NET Minimal API — modular monolith (`Senswave.sln`) |
+| Layer | Technology |
+|-------|------------|
+| Mobile | React Native 0.81.5 + Expo ~54 |
+| Routing | Expo Router (file-based) |
+| Language | TypeScript 5.9 (strict mode) |
+| State | Context API + custom hooks |
+| Real-time | SignalR (`@microsoft/signalr` 8.x) |
+| Auth storage | `expo-secure-store` |
+| Backend | .NET Minimal API — modular monolith (`Senswave.sln`) |
 
 Current app version: **1.1.0**
 
@@ -125,39 +125,31 @@ Operations of type `Options` have a configurable list of allowed string values (
 ### Widgets
 
 ```ts
-type WidgetType =
-    | "Invalid"
-    | "Empty"
-    | "Button"
-    | "Display"
-    | "Switch"
-    | "Radio"
-    | "Slider"
-    | "Color";
+type WidgetType = "Invalid" | "Empty" | "Button" | "Display" | "Switch" | "Radio" | "Slider" | "Color";
 ```
 
 Each widget binds to an Operation. Widget behaviour per type:
 
-| Widget  | OperationType    | Behaviour                                   |
-| ------- | ---------------- | ------------------------------------------- |
-| Button  | Any              | Sends configured value on press             |
-| Display | Any              | Shows current value read-only               |
-| Switch  | Boolean          | Toggle true/false                           |
-| Radio   | Options          | Select from option list (modal picker)      |
-| Slider  | Number / Integer | Range slider with configured min/max        |
-| Color   | HexColor         | Full color picker (reanimated-color-picker) |
-| Empty   | —                | Placeholder slot on dashboard grid          |
-| Invalid | —                | Misconfigured widget fallback               |
+| Widget | OperationType | Behaviour |
+|--------|--------------|-----------|
+| Button | Any | Sends configured value on press |
+| Display | Any | Shows current value read-only |
+| Switch | Boolean | Toggle true/false |
+| Radio | Options | Select from option list (modal picker) |
+| Slider | Number / Integer | Range slider with configured min/max |
+| Color | HexColor | Full color picker (reanimated-color-picker) |
+| Empty | — | Placeholder slot on dashboard grid |
+| Invalid | — | Misconfigured widget fallback |
 
 ### OperationType → ConditionType mapping (Automations)
 
 ```ts
 const OperationToConditionMap: Record<OperationType, ConditionType> = {
     Boolean: "BooleanCondition",
-    Number: "NumberCondition",
+    Number:  "NumberCondition",
     Integer: "NumberCondition",
-    Text: "TextCondition",
-    HexColor: "TextCondition",
+    Text:    "TextCondition",
+    HexColor:"TextCondition",
     Options: "TextCondition",
 };
 ```
@@ -166,7 +158,7 @@ const OperationToConditionMap: Record<OperationType, ConditionType> = {
 
 ```ts
 type ConditionType = "BooleanCondition" | "NumberCondition" | "TextCondition" | "InvalidCondition";
-type ConditionConnector = "And" | "Or"; // how conditions are joined
+type ConditionConnector = "And" | "Or";  // how conditions are joined
 ```
 
 Automation has many `conditions` and many `results`. All conditions joined by one `conditionConnector`. Results define which operations fire and with what value.
@@ -176,8 +168,8 @@ Automation has many `conditions` and many `results`. All conditions joined by on
 ```ts
 type MqttVersion = "MqttV5" | "MqttV311" | "MqttV310";
 
-type DataSourceDto = { id; name; url; clientName; port; mqttVersion; tls };
-type SubscriptionDto = { id; topic }; // MQTT topic subscription on a broker
+type DataSourceDto = { id, name, url, clientName, port, mqttVersion, tls };
+type SubscriptionDto = { id, topic };                // MQTT topic subscription on a broker
 type CreateSubscriptionRequest = { topic };
 ```
 
@@ -186,20 +178,8 @@ DataSources are MQTT brokers. Each has subscriptions (MQTT topics). Topic data i
 ### Home
 
 ```ts
-interface Home {
-    id;
-    name;
-    icon;
-    isOwner;
-    dataSource: HomeDataSource;
-    location: Location;
-    rooms: Room[];
-}
-interface HomeDataSource {
-    id;
-    name;
-    state;
-} // state updated via SignalR
+interface Home { id, name, icon, isOwner, dataSource: HomeDataSource, location: Location, rooms: Room[] }
+interface HomeDataSource { id, name, state }  // state updated via SignalR
 ```
 
 Home roles: `Display` (view + act), `Manage` (view + act + configure).
@@ -207,19 +187,8 @@ Home roles: `Display` (view + act), `Manage` (view + act + configure).
 ### User
 
 ```ts
-enum ThemeMode {
-    Light = "light",
-    Dark = "dark",
-    Default = "default",
-}
-interface UserData {
-    language;
-    theme;
-    email;
-    name;
-    image?;
-    hasActiveConsent?;
-}
+enum ThemeMode { Light = "light", Dark = "dark", Default = "default" }
+interface UserData { language, theme, email, name, image?, hasActiveConsent? }
 ```
 
 `name` derived from email: first char uppercased + rest before `@`. Theme `Default` = system theme.
@@ -228,10 +197,10 @@ interface UserData {
 
 ```ts
 // Simple success/failure
-SimpleResult.success() / SimpleResult.failure("message");
+SimpleResult.success() / SimpleResult.failure("message")
 
 // With typed data
-Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<T>("message", data);
+Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<T>("message", data)
 ```
 
 ---
@@ -248,22 +217,22 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
 - 15s request timeout
 - Auto token refresh on 401 (retry once with new token)
-- **403** → logout (LegalMiddleware: missing user consents — user hasn't accepted latest Terms/Privacy)
+- **403** / `PermissionDenied` → logout (LegalMiddleware: missing user consents — user hasn't accepted latest Terms/Privacy)
 - **Never** call `fetch` directly outside `httpClient.tsx` and `src/api/transport/rest/`
 - Callers must consume api errors only through `call()` / `callSimple()` / `toApiError()`; never inspect a raw caught error.
 - API path prefix: `/api/v1/...` (built by `ConfigurationProvider.getApiUrl`)
 
 ### Key API endpoints by feature
 
-| Feature        | Endpoint            | Method |
-| -------------- | ------------------- | ------ |
-| User data      | `v1/users`          | GET    |
-| User settings  | `v1/users/settings` | PATCH  |
-| Delete account | `v1/users/account`  | DELETE |
-| Make consents  | `v1/users/consents` | POST   |
-| Terms          | `v1/legal/terms`    | GET    |
-| Privacy        | `v1/legal/privacy`  | GET    |
-| API version    | `v1/version`        | GET    |
+| Feature | Endpoint | Method |
+|---------|----------|--------|
+| User data | `v1/users` | GET |
+| User settings | `v1/users/settings` | PATCH |
+| Delete account | `v1/users/account` | DELETE |
+| Make consents | `v1/users/consents` | POST |
+| Terms | `v1/legal/terms` | GET |
+| Privacy | `v1/legal/privacy` | GET |
+| API version | `v1/version` | GET |
 
 ### Consent flow
 
@@ -288,24 +257,24 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 
 ### Auth API endpoints
 
-| Endpoint                          | Method | Purpose                          |
-| --------------------------------- | ------ | -------------------------------- |
-| `v1/auth/login`                   | POST   | Email/password login             |
-| `v1/auth/login/google`            | POST   | Google OAuth login               |
-| `v1/auth/register`                | POST   | Register new account             |
-| `v1/auth/refresh`                 | POST   | Refresh access token             |
-| `v1/auth/confirmEmail`            | GET    | Confirm email with userId + code |
-| `v1/auth/resendConfirmationEmail` | POST   | Resend confirmation email        |
-| `v1/auth/forgotPassword`          | POST   | Send reset email                 |
-| `v1/auth/resetPassword`           | POST   | Reset password with code         |
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `v1/auth/login` | POST | Email/password login |
+| `v1/auth/login/google` | POST | Google OAuth login |
+| `v1/auth/register` | POST | Register new account |
+| `v1/auth/refresh` | POST | Refresh access token |
+| `v1/auth/confirmEmail` | GET | Confirm email with userId + code |
+| `v1/auth/resendConfirmationEmail` | POST | Resend confirmation email |
+| `v1/auth/forgotPassword` | POST | Send reset email |
+| `v1/auth/resetPassword` | POST | Reset password with code |
 
 ### Login status codes
 
-| Code             | Meaning                                  |
-| ---------------- | ---------------------------------------- |
+| Code | Meaning |
+|------|---------|
 | 401 `NotAllowed` | Email not confirmed — show resend button |
-| 401 other        | Invalid credentials                      |
-| 500              | Server unavailable                       |
+| 401 other | Invalid credentials |
+| 500 | Server unavailable |
 
 ---
 
@@ -320,19 +289,19 @@ Hub endpoint: `signalr/liveupdates/live`
 
 ### Invoked methods (client → server)
 
-| Method       | Args             | When                                                      |
-| ------------ | ---------------- | --------------------------------------------------------- |
+| Method | Args | When |
+|--------|------|------|
 | `Initialize` | `homeId: string` | On active home change — subscribes to that home's updates |
 
 ### Received events (server → client)
 
 Listened on `"Update"` event with signature `(updateType: string, data: any)`:
 
-| `updateType`             | `data` shape              | Effect                                                        |
-| ------------------------ | ------------------------- | ------------------------------------------------------------- |
-| `deviceTileActionUpdate` | `{ deviceId }`            | Calls per-device registered callback (dashboard tile refresh) |
-| `widgetsActionUpdate`    | `{ deviceId }`            | Triggers `device.smartRefresh(deviceId)`                      |
-| `dataSourceStateUpdate`  | `{ dataSourceId, state }` | Updates DataSource state in active home                       |
+| `updateType` | `data` shape | Effect |
+|---|---|---|
+| `deviceTileActionUpdate` | `{ deviceId }` | Calls per-device registered callback (dashboard tile refresh) |
+| `widgetsActionUpdate` | `{ deviceId }` | Triggers `device.smartRefresh(deviceId)` |
+| `dataSourceStateUpdate` | `{ dataSourceId, state }` | Updates DataSource state in active home |
 
 Also: `"AccessNotGrantedToHome"` event `(homeId, message)` — logged, no redirect.
 
@@ -342,33 +311,33 @@ Context: `useLiveUpdate()` — exposes `addDeviceTileCallback(deviceId, cb)` and
 
 ## Notable Common Components
 
-| Component              | Purpose                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `JsonPathSelector`     | Lets user define JSON field path list for parsing MQTT messages. Validates: no `"` or `\`, no control chars, max 64 chars per key |
-| `Icon`                 | Wrapper around `@expo/vector-icons` with a curated icon set                                                                       |
-| `Modal`                | Generic modal wrapper using `ModalProvider`                                                                                       |
-| `PasswordInput`        | Secure text input with show/hide toggle, used in all auth forms                                                                   |
-| `SafetyNote`           | Info/warning callout shown in forms for user guidance                                                                             |
-| `Expander`             | Collapsible section used in Home details (sharing list, rooms, etc.)                                                              |
-| `Dropdown`             | Selection component used in profile (theme, language)                                                                             |
-| `HorizontalSelector`   | Tab-style horizontal option picker                                                                                                |
-| `LocalizationSelector` | Language picker                                                                                                                   |
-| `SimpleItemList`       | Generic list for simple key-value displays                                                                                        |
-| `UserProfileImage`     | User avatar derived from email initial                                                                                            |
+| Component | Purpose |
+|-----------|---------|
+| `JsonPathSelector` | Lets user define JSON field path list for parsing MQTT messages. Validates: no `"` or `\`, no control chars, max 64 chars per key |
+| `Icon` | Wrapper around `@expo/vector-icons` with a curated icon set |
+| `Modal` | Generic modal wrapper using `ModalProvider` |
+| `PasswordInput` | Secure text input with show/hide toggle, used in all auth forms |
+| `SafetyNote` | Info/warning callout shown in forms for user guidance |
+| `Expander` | Collapsible section used in Home details (sharing list, rooms, etc.) |
+| `Dropdown` | Selection component used in profile (theme, language) |
+| `HorizontalSelector` | Tab-style horizontal option picker |
+| `LocalizationSelector` | Language picker |
+| `SimpleItemList` | Generic list for simple key-value displays |
+| `UserProfileImage` | User avatar derived from email initial |
 
 ---
 
 ## Environment Variables
 
-| Variable                           | Description                                                                              | Default (template)                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `EXPO_PUBLIC_ENVIRONMENT`          | `Development` or production                                                              | `Development`                             |
-| `EXPO_PUBLIC_SENSWAVE__API__URL`   | Backend base URL                                                                         | `http://10.0.2.2:8080` (Android emulator) |
-| `EXPO_PUBLIC_API_GOOGLE_CLIENT_ID` | Google OAuth API client ID                                                               | —                                         |
-| `EXPO_PUBLIC_MINIMAL_API_VERSION`  | Minimum compatible API version                                                           | `1.0.0`                                   |
-| `EXPO_PUBLIC_CONTACT_EMAIL`        | Support email shown in app                                                               | `contact@senswave.net`                    |
-| `EXPO_PUBLIC_TRANSPORT_MODE`       | API transport: Rest, Grpc (Android native) or GrpcWeb; must match backend Transport:Mode | `Rest`                                    |
-| `SENSWAVE_BACKEND_PROTO_DIR`       | Local backend proto dir for `npm run proto:sync` (dev tooling only)                      | —                                         |
+| Variable | Description | Default (template) |
+|----------|-------------|-------------------|
+| `EXPO_PUBLIC_ENVIRONMENT` | `Development` or production | `Development` |
+| `EXPO_PUBLIC_SENSWAVE__API__URL` | Backend base URL | `http://10.0.2.2:8080` (Android emulator) |
+| `EXPO_PUBLIC_API_GOOGLE_CLIENT_ID` | Google OAuth API client ID | — |
+| `EXPO_PUBLIC_MINIMAL_API_VERSION` | Minimum compatible API version | `1.0.0` |
+| `EXPO_PUBLIC_CONTACT_EMAIL` | Support email shown in app | `contact@senswave.net` |
+| `EXPO_PUBLIC_TRANSPORT_MODE` | API transport: Rest, Grpc (Android native) or GrpcWeb; must match backend Transport:Mode | `Rest` |
+| `SENSWAVE_BACKEND_PROTO_DIR` | Local backend proto dir for `npm run proto:sync` (dev tooling only) | — |
 
 Create `.env` from `.env.template` before first run.
 
@@ -399,15 +368,15 @@ npm run fix                 # ESLint auto-fix
 
 ## Naming Conventions
 
-| Artifact                | Convention                        | Example                       |
-| ----------------------- | --------------------------------- | ----------------------------- |
-| Components              | PascalCase                        | `DeviceForm.tsx`              |
-| Context providers       | PascalCase + "Provider"           | `SessionProvider.tsx`         |
-| Custom hooks            | camelCase + "use" prefix          | `useSession`, `useDeviceList` |
-| Routes / utils / styles | camelCase                         | `add.tsx`, `httpClient.tsx`   |
-| Type files              | PascalCase                        | `DeviceTypes.tsx`             |
-| Props interfaces        | PascalCase                        | `interface DeviceFormProps`   |
-| Callbacks               | `onPress`, `onSubmit`, `setValue` | —                             |
+| Artifact | Convention | Example |
+|----------|------------|---------|
+| Components | PascalCase | `DeviceForm.tsx` |
+| Context providers | PascalCase + "Provider" | `SessionProvider.tsx` |
+| Custom hooks | camelCase + "use" prefix | `useSession`, `useDeviceList` |
+| Routes / utils / styles | camelCase | `add.tsx`, `httpClient.tsx` |
+| Type files | PascalCase | `DeviceTypes.tsx` |
+| Props interfaces | PascalCase | `interface DeviceFormProps` |
+| Callbacks | `onPress`, `onSubmit`, `setValue` | — |
 
 ---
 
@@ -424,12 +393,12 @@ npm run fix                 # ESLint auto-fix
 
 ## EAS Build Profiles
 
-| Profile      | Distribution | Android type | Notes                                |
-| ------------ | ------------ | ------------ | ------------------------------------ |
-| development  | internal     | APK          | Dev client enabled                   |
-| localpreview | internal     | APK          | Extends preview                      |
-| preview      | internal     | —            | Auto-increments version              |
-| production   | store        | —            | Auto-increments version; manual only |
+| Profile | Distribution | Android type | Notes |
+|---------|-------------|--------------|-------|
+| development | internal | APK | Dev client enabled |
+| localpreview | internal | APK | Extends preview |
+| preview | internal | — | Auto-increments version |
+| production | store | — | Auto-increments version; manual only |
 
 App version source: `remote` (EAS manages it).
 
@@ -437,19 +406,19 @@ App version source: `remote` (EAS manages it).
 
 ## CI / GitHub Workflows
 
-| Workflow                     | Trigger                   |
-| ---------------------------- | ------------------------- |
-| `build.yaml`                 | Every pull request        |
-| `build-expo-preview.yaml`    | Preview build             |
+| Workflow | Trigger |
+|----------|---------|
+| `build.yaml` | Every pull request |
+| `build-expo-preview.yaml` | Preview build |
 | `build-expo-production.yaml` | Production build (manual) |
 
 ### Pull Request Rules
 
 - Notify if tests fail; do **not** merge autonomously
 - Commit/PR title format:
-    - `fix: <description>` — bug fix
-    - `feat: <description>` — new feature
-    - `chore: <description>` — maintenance
+  - `fix: <description>` — bug fix
+  - `feat: <description>` — new feature
+  - `chore: <description>` — maintenance
 
 ---
 
@@ -457,11 +426,11 @@ App version source: `remote` (EAS manages it).
 
 Format: `{major}.{minor}.{patch}`
 
-| Change                       | Forces update |
-| ---------------------------- | ------------- |
-| major differs                | Always        |
-| minor differs                | Always        |
-| patch: `appPatch > apiPatch` | Yes           |
+| Change | Forces update |
+|--------|--------------|
+| major differs | Always |
+| minor differs | Always |
+| patch: `appPatch > apiPatch` | Yes |
 
 Env var controlling minimum API version: `EXPO_PUBLIC_MINIMAL_API_VERSION`.
 Forced update also possible via Play Store.
