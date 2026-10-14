@@ -6,7 +6,6 @@ import type { TransportMode } from "@/api/transport/TransportMode";
 import { ApiError } from "@/api/errors";
 import { createLiveUpdateSource } from "@/api/liveUpdates/createLiveUpdateSource";
 import type { LiveUpdateSource } from "@/api/liveUpdates/LiveUpdateSource";
-import { Code } from "@connectrpc/connect";
 import { useConfiguration } from "./ConfigurationProvider";
 import { useSession } from "./SessionProvider";
 import { useToast } from "./ToastProvider";
@@ -19,13 +18,6 @@ export interface ApiContextValue extends ApiClients {
     /** SignalR in Rest mode, gRPC stream otherwise. */
     liveUpdateSource: LiveUpdateSource;
 }
-
-const unavailableLiveUpdateSource: LiveUpdateSource = {
-    subscribe: (_homeId, _onUpdate, onError) => {
-        onError(new ApiError({ code: Code.Unavailable, message: "Live updates unavailable" }));
-        return () => undefined;
-    },
-};
 
 const ApiContext = createContext<ApiContextValue | null>(null);
 
@@ -95,14 +87,12 @@ export const ApiProvider: FC<PropsWithChildren> = ({ children }) => {
 
         const clients = createApiClients(transport);
 
-        const liveUpdateSource = signalRUrl
-            ? createLiveUpdateSource({
-                  mode,
-                  signalRUrl,
-                  getAccessToken: () => sessionRef.current.session.accessToken ?? "",
-                  client: clients.liveUpdates,
-              })
-            : unavailableLiveUpdateSource;
+        const liveUpdateSource = createLiveUpdateSource({
+            mode,
+            signalRUrl,
+            getAccessToken: () => sessionRef.current.session.accessToken ?? "",
+            client: clients.liveUpdates,
+        });
 
         return {
             ...clients,
