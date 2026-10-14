@@ -1,4 +1,5 @@
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call } from "@/api/call";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { useToast } from "@/contexts/ToastProvider";
 import { useEffect, useState } from "react";
@@ -20,14 +21,8 @@ const roleOptions: Option[] = [
     { name: HomeRolesToName.get("Manage")!, value: "Manage" },
 ];
 
-interface ShareHomeResponse {
-    invitationId: string;
-    password: string;
-    createdUtc: string;
-}
-
 function ShareHomePage() {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const theme = useTheme();
     const toast = useToast();
     const home = useHomes();
@@ -45,24 +40,23 @@ function ShareHomePage() {
     };
 
     const submitClicked = async () => {
-        const payload = {
-            homeId: home.current!.id,
-            friendEmail: email,
-            sharingType: role,
-        };
-
         try {
             setLoading(true);
 
-            const result = await httpClient.post(`v1/homes/sharings`, payload);
+            const result = await call(() =>
+                api.homeSharing.createSharing({
+                    homeId: home.current!.id,
+                    friendEmail: email,
+                    sharingType: role,
+                }),
+            );
 
             if (result.isSuccess) {
                 toast.success("Home sharing password generated.");
-                const data = (await result.response?.json()) as ShareHomeResponse;
 
-                setPassword(data.password);
+                setPassword(result.data!.password);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("Failed to share home", error);

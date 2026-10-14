@@ -1,7 +1,8 @@
 import Button from "@/components/common/Button";
 import HomeForm, { HomeFormHandle } from "@/components/home/HomeForm";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
@@ -10,7 +11,7 @@ import { View } from "react-native";
 
 function Add() {
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const homes = useHomes();
     const { firstHome } = useLocalSearchParams();
@@ -21,9 +22,16 @@ function Add() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.post("v1/homes", values);
+        const result = await callSimple(() =>
+            api.homes.createHome({
+                name: values.name,
+                icon: values.icon,
+                latitude: values.latitude,
+                longitude: values.longitude,
+            }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Home added successfully.");
 
             if ((firstHome as string) === "first") {
@@ -33,7 +41,7 @@ function Add() {
 
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);

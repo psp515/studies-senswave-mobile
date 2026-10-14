@@ -7,6 +7,8 @@ import DataSourceTile from "@/components/dataSource/tile/DataSourceTile";
 import HomeForm, { HomeFormHandle } from "@/components/home/HomeForm";
 import HomeSharingList from "@/components/homeSharing/HomeSharingList";
 import { useHomes } from "@/contexts/domain/HomeProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useHttpClient } from "@/contexts/HttpClientProvider";
 import { useToast } from "@/contexts/ToastProvider";
 import { DataSourceDto } from "@/types/DataSourcesTypes";
@@ -17,6 +19,7 @@ import { View } from "react-native";
 function DetailsPage() {
     const router = useRouter();
     const toast = useToast();
+    const api = useApi();
     const httpClient = useHttpClient();
     const homes = useHomes();
     const [loading, setLoading] = useState(false);
@@ -30,27 +33,35 @@ function DetailsPage() {
     const editClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.patch("v1/homes/" + homes.current?.id, values);
+        const result = await callSimple(() =>
+            api.homes.updateHome({
+                homeId: homes.current?.id as string,
+                name: values.name ?? "",
+                icon: values.icon ?? "",
+                latitude: values.latitude,
+                longitude: values.longitude,
+            }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Home updated successfully.");
             await homes.setCurrent(homes.current?.id as string);
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);
     };
 
     const deleteHome = async () => {
-        const response = await httpClient.delete(`v1/homes/${homes.current!.id}`);
+        const result = await callSimple(() => api.homes.deleteHome({ homeId: homes.current!.id }));
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Home removed successfully.");
             await homes.initializeCurrentHome();
             router.replace("/");
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
     };
 
@@ -61,16 +72,16 @@ function DetailsPage() {
     const leaveHome = async () => {
         try {
             setLoading(true);
-            const response = await httpClient.delete(
-                `v1/homes/sharings/leave/${homes.current!.id}`,
+            const result = await callSimple(() =>
+                api.homeSharing.leaveSharing({ homeId: homes.current!.id }),
             );
 
-            if (response.isSuccess) {
+            if (result.isSuccess) {
                 toast.success("Left home successfully.");
                 await homes.initializeCurrentHome();
                 router.back();
             } else {
-                toast.httpError(response);
+                toast.apiError(result);
             }
         } finally {
             setLoading(false);
@@ -110,14 +121,16 @@ function DetailsPage() {
         try {
             setUnlinkLoading(true);
 
-            const result = await httpClient.delete(`/v1/homes/${homes.current?.id}/datasource`);
+            const result = await callSimple(() =>
+                api.homes.deleteHomeDataSource({ homeId: homes.current?.id as string }),
+            );
 
             if (result.isSuccess) {
                 await homes.refreshCurrent();
                 setDataSource(undefined);
                 toast.success("Unlinked data source from home.");
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(error);

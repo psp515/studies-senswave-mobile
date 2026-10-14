@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useToast } from "@/contexts/ToastProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useHomes } from "@/contexts/domain/HomeProvider";
 import Loading from "@/components/common/Loading";
 import ImageButton from "@/components/common/ImageButton";
@@ -11,7 +12,7 @@ import DataSourceList from "@/components/dataSource/DataSourceList";
 function SelectHomeDataSource() {
     const toast = useToast();
     const router = useRouter();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const homes = useHomes();
     const [loading, setLoading] = useState(false);
 
@@ -31,20 +32,25 @@ function SelectHomeDataSource() {
         try {
             setLoading(true);
 
-            const result = await httpClient.put(`/v1/homes/${homes.current?.id}/datasource`, {
-                brokerId: id,
-            });
+            const result = await callSimple(() =>
+                api.homes.setHomeDataSource({
+                    homeId: homes.current?.id as string,
+                    brokerId: id,
+                }),
+            );
 
             if (result.isSuccess) {
                 toast.success("Data source linked to home.");
                 homes.refreshCurrent();
                 router.back();
             } else {
-                const errorText = await result.response?.text();
                 console.error(
-                    `Failed to link data source to home. (One Broker per Home). ${errorText}`,
+                    `Failed to link data source to home. (One Broker per Home). ${result.errorMessage}`,
                 );
-                toast.error("Failed to link data source: only one broker per home is allowed.");
+                toast.apiError(
+                    result,
+                    "Failed to link data source: only one broker per home is allowed.",
+                );
             }
         } catch (error) {
             console.error(error);

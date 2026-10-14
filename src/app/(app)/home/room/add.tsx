@@ -1,7 +1,8 @@
 import Button from "@/components/common/Button";
 import RoomForm, { RoomFormHandle } from "@/components/room/RoomForm";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -11,7 +12,7 @@ import { KeyboardStickyView } from "react-native-keyboard-controller";
 function Add() {
     const router = useRouter();
     const homes = useHomes();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const formRef = useRef<RoomFormHandle>(null);
     const [loading, setLoading] = useState(false);
@@ -20,16 +21,16 @@ function Add() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.post(`v1/homes/${homes.current?.id}/rooms`, values);
+        const result = await callSimple(() =>
+            api.rooms.createRoom({ homeId: homes.current?.id as string, name: values.name }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Room added successfully.");
             homes.refreshRooms();
             router.back();
         } else {
-            toast.error("Failed to add room.");
-            const data = await response.response?.text();
-            console.error(data);
+            toast.apiError(result, "Failed to add room.");
         }
 
         setLoading(false);

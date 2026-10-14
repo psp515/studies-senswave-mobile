@@ -3,7 +3,8 @@ import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
 import RoomForm, { RoomFormHandle } from "@/components/room/RoomForm";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { Room } from "@/types/HomeTypes";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,7 +15,7 @@ function Details() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const homes = useHomes();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const formRef = useRef<RoomFormHandle>(null);
 
@@ -25,33 +26,36 @@ function Details() {
 
     const editClicked = async (values: any) => {
         setLoading(true);
-        const response = await httpClient.patch(
-            `v1/homes/${homes.current?.id}/rooms/${id}`,
-            values,
+        const result = await callSimple(() =>
+            api.rooms.updateRoom({
+                homeId: homes.current?.id as string,
+                roomId: id as string,
+                name: values.name,
+            }),
         );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Room updated successfully.");
             homes.refreshRooms();
             router.back();
         } else {
-            toast.httpError(response);
+            toast.apiError(result);
         }
 
         setLoading(false);
     };
 
     const deleteRoom = async () => {
-        const response = await httpClient.delete(`v1/homes/${homes.current?.id}/rooms/${id}`);
+        const result = await callSimple(() =>
+            api.rooms.deleteRoom({ homeId: homes.current?.id as string, roomId: id as string }),
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Room removed successfully.");
             homes.refreshRooms();
             router.back();
         } else {
-            toast.error("Failed to remove room.");
-            const data = await response.response?.text();
-            console.error("[Room Details] Error: " + data);
+            toast.apiError(result, "Failed to remove room.");
         }
     };
 
@@ -62,13 +66,14 @@ function Details() {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const response = await httpClient.get(`v1/homes/${homes.current?.id}/rooms/${id}`);
+            const result = await call(() =>
+                api.rooms.getRoom({ homeId: homes.current?.id as string, roomId: id as string }),
+            );
 
-            if (response.isSuccess) {
-                const content = (await response.response?.json()) as Room;
-                setRoom(content);
+            if (result.isSuccess) {
+                setRoom({ id: result.data!.id, name: result.data!.name });
             } else {
-                toast.httpError(response);
+                toast.apiError(result);
             }
 
             setLoading(false);
