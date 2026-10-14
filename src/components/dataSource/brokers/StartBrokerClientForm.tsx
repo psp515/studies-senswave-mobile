@@ -3,7 +3,8 @@ import Input from "@/components/common/Input";
 import PasswordInput from "@/components/common/PasswordInput";
 import { Switch } from "@/components/common/Switch";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -24,7 +25,7 @@ const credentialCacheKey = (brokerId: string) => `brokerClientCredentials-${brok
 const StartBrokerClientForm: FC<StartBrokerClientFormProps> = ({
     brokerId,
 }: StartBrokerClientFormProps) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
     const homes = useHomes();
@@ -63,15 +64,10 @@ const StartBrokerClientForm: FC<StartBrokerClientFormProps> = ({
 
         await manageCredentials();
 
-        const payload = {
-            username: username,
-            password: password,
-        };
-
         try {
-            const result = await httpClient.post(
-                `v1/datasources/brokers/${brokerId}/clients`,
-                payload,
+            const result = await callSimple(
+                () => api.dataSources.startClient({ brokerId, username, password }),
+                "Failed to start broker client.",
             );
             if (result.isSuccess) {
                 console.info("[Start Broker Client Page] Started broker client.");
@@ -80,7 +76,7 @@ const StartBrokerClientForm: FC<StartBrokerClientFormProps> = ({
                 router.back();
             } else {
                 console.info("[Start Broker Client Page] Failed to start broker client.");
-                toast.error("Failed to start broker client.");
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(error);

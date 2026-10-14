@@ -1,11 +1,13 @@
 import Loading from "@/components/common/Loading";
 import DataSourceTile from "@/components/dataSource/tile/DataSourceTile";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, isNotFound } from "@/api/call";
+import { isoFromTimestamp } from "@/api/json";
+import type { GetBrokersResponse } from "@/api/gen/datasources/v1/datasources_pb";
 import { useToast } from "@/contexts/ToastProvider";
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
 import Text from "@/components/common/Text";
-import { ListResponse } from "@/utils/httpClient";
 import { useFocusEffect } from "expo-router";
 
 export type DataSource = {
@@ -16,46 +18,59 @@ export type DataSource = {
     updatedAt: string;
 };
 
+const toDataSources = (r: GetBrokersResponse): DataSource[] =>
+    r.items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        server: i.server,
+        createdAt: isoFromTimestamp(i.createdAt),
+        updatedAt: isoFromTimestamp(i.updatedAt),
+    }));
+
 interface DataSourceListInterface {
     onListItemSelected?: (id: string) => void;
 }
 
 function DataSourceList({ onListItemSelected }: DataSourceListInterface) {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [dataSources, setDataSources] = useState<DataSource[]>([]);
 
+    const fetchBrokers = () =>
+        call(
+            () => api.dataSources.getBrokers({ page: 0, size: 0 }),
+            "Failed to load data sources.",
+        );
+
     const onRefresh = async () => {
         setRefreshing(true);
-        const result = await httpClient.get("v1/datasources/brokers");
+        const result = await fetchBrokers();
 
         if (result.isSuccess) {
-            const content = (await result.response!.json()) as ListResponse<DataSource>;
-            setDataSources(content.items);
-            setRefreshing(false);
+            setDataSources(toDataSources(result.data!));
+        } else if (isNotFound(result)) {
+            setDataSources([]);
         } else {
-            toast.error("Failed to load data sources.");
-            setRefreshing(false);
+            toast.apiError(result);
         }
+        setRefreshing(false);
     };
 
     const getDataSources = async () => {
         setLoading(true);
-        const result = await httpClient.get("v1/datasources/brokers");
+        const result = await fetchBrokers();
 
         if (result.isSuccess) {
-            const content = (await result.response!.json()) as ListResponse<DataSource>;
-            setDataSources(content.items);
-            setLoading(false);
-        } else if (result.statusCode === 404) {
+            setDataSources(toDataSources(result.data!));
+        } else if (isNotFound(result)) {
+            setDataSources([]);
             toast.info("Create your first data source.");
-            setLoading(false);
         } else {
-            toast.error("Failed to load data sources.");
-            setLoading(false);
+            toast.apiError(result);
         }
+        setLoading(false);
     };
 
     useFocusEffect(

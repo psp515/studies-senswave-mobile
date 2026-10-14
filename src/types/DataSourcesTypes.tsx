@@ -1,3 +1,5 @@
+import type { GetBrokerResponse } from "@/api/gen/datasources/v1/datasources_pb";
+
 export type MqttVersion = "MqttV5" | "MqttV311" | "MqttV310";
 
 export type DataSourceDto = {
@@ -6,8 +8,8 @@ export type DataSourceDto = {
     url: string;
     clientName: string;
     port: number;
-    mqttVersion: MqttVersion;
-    tls: boolean;
+    protocolVersion: MqttVersion;
+    useTls: boolean;
 };
 
 export type SubscriptionDto = {
@@ -18,3 +20,13 @@ export type SubscriptionDto = {
 export type CreateSubscriptionRequest = {
     topic: string;
 };
+
+export const toDataSourceDto = (r: GetBrokerResponse): DataSourceDto => ({
+    id: r.id,
+    name: r.name,
+    url: r.url,
+    clientName: r.clientName,
+    port: r.port,
+    protocolVersion: r.protocolVersion as MqttVersion,
+    useTls: r.useTls,
+});

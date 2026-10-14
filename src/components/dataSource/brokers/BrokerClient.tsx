@@ -1,5 +1,6 @@
 import Loading from "@/components/common/Loading";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple } from "@/api/call";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { useToast } from "@/contexts/ToastProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
@@ -21,10 +22,11 @@ function ClientsDetailsView() {
     const router = useRouter();
     const toast = useToast();
     const homes = useHomes();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const theme = useTheme();
 
-    const { id } = useLocalSearchParams();
+    const { id: idParam } = useLocalSearchParams<{ id: string }>();
+    const id = idParam ?? "";
     const [loading, setLoading] = useState<boolean>(false);
     const [client, setClient] = useState<ClientDto | null>(null);
 
@@ -35,17 +37,20 @@ function ClientsDetailsView() {
             setLoading(true);
 
             try {
-                const result = await httpClient.get(`v1/datasources/brokers/${id}/clients`);
+                const result = await call(
+                    () => api.dataSources.getClientState({ brokerId: id }),
+                    "Failed to load broker client details.",
+                );
 
                 if (result.isSuccess) {
-                    const content = (await result.response?.json()) as ClientDto;
-                    setClient(content);
+                    setClient({
+                        connectionStatus: result.data!
+                            .connectionStatus as ClientDto["connectionStatus"],
+                        latestSessionId: result.data!.latestSessionId,
+                    });
                 } else {
-                    const response = await result.response?.text();
-                    console.error(response);
-
                     console.error("Failed to load broker details.");
-                    toast.error("Failed to load broker client details.");
+                    toast.apiError(result);
                 }
             } catch (error) {
                 console.error(error);
@@ -78,14 +83,17 @@ function ClientsDetailsView() {
         try {
             setLoading(true);
 
-            const result = await httpClient.delete(`v1/datasources/brokers/${id}/clients`);
+            const result = await callSimple(
+                () => api.dataSources.stopClient({ brokerId: id }),
+                "Failed to stop broker client.",
+            );
             if (result.isSuccess) {
                 console.info("[Client Details] Stopped broker client.");
                 toast.success("Broker client stopped successfully.");
                 await homes.refreshCurrent();
             } else {
                 console.error("[Client Details] Failed to stop broker client.");
-                toast.error("Failed to stop broker client.");
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("Failed to stop broker client", error);
@@ -121,16 +129,16 @@ function ClientsDetailsView() {
         try {
             setLoading(true);
 
-            const result = await httpClient.patch(
-                `v1/datasources/brokers/${id}/clients/restart`,
-                {},
+            const result = await callSimple(
+                () => api.dataSources.restartClient({ brokerId: id }),
+                "Failed to restart broker client.",
             );
             if (result.isSuccess) {
                 console.info("[Client Details] Restart broker client.");
                 toast.success("Broker client restarted successfully.");
                 await homes.refreshCurrent();
             } else {
-                toast.error("Failed to restart broker client.");
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("Failed to restart broker client", error);
@@ -148,7 +156,7 @@ function ClientsDetailsView() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContentContainer}>
                 <View style={{ ...styles.tile, backgroundColor: theme.current.colors.primary }}>
-                    <DataSourceStateGet id={id as string} />
+                    <DataSourceStateGet id={id} />
                 </View>
             </ScrollView>
             <ScrollView

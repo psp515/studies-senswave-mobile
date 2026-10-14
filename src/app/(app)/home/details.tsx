@@ -8,10 +8,9 @@ import HomeForm, { HomeFormHandle } from "@/components/home/HomeForm";
 import HomeSharingList from "@/components/homeSharing/HomeSharingList";
 import { useHomes } from "@/contexts/domain/HomeProvider";
 import { useApi } from "@/contexts/ApiProvider";
-import { callSimple } from "@/api/call";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { call, callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { DataSourceDto } from "@/types/DataSourcesTypes";
+import { DataSourceDto, toDataSourceDto } from "@/types/DataSourcesTypes";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
@@ -20,7 +19,6 @@ function DetailsPage() {
     const router = useRouter();
     const toast = useToast();
     const api = useApi();
-    const httpClient = useHttpClient();
     const homes = useHomes();
     const [loading, setLoading] = useState(false);
     const [unlinkLoading, setUnlinkLoading] = useState(false);
@@ -95,15 +93,16 @@ function DetailsPage() {
     const loadDataSource = async () => {
         setLoading(true);
 
-        const response = await httpClient.get(
-            "v1/datasources/brokers/" + homes.current?.dataSource?.id,
+        const brokerId = homes.current?.dataSource?.id ?? "";
+        const result = await call(
+            () => api.dataSources.getBroker({ brokerId }),
+            "Failed to load home data source.",
         );
 
-        if (response.isSuccess) {
-            const content = (await response.response?.json()) as DataSourceDto;
-            setDataSource(content);
+        if (result.isSuccess) {
+            setDataSource(toDataSourceDto(result.data!));
         } else {
-            toast.error("Failed to load home data source.");
+            toast.apiError(result);
         }
 
         setLoading(false);

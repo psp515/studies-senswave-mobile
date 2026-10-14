@@ -1,39 +1,34 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import React from "react";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import Loading from "@/components/common/Loading";
 import Text from "@/components/common/Text";
 import DataSourceState from "./DataSourceState";
-
-type BrokerClientStateResponse = {
-    connectionStatus: string;
-    latestSessionId: string;
-};
 
 interface BrokerClientStateGetProperties {
     id: string;
 }
 
 function BrokerClientStateGet({ id }: BrokerClientStateGetProperties) {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
 
     const [loading, setLoading] = useState(true);
-    const [state, setState] = useState<BrokerClientStateResponse | undefined>(undefined);
+    const [state, setState] = useState<string | undefined>(undefined);
 
     const fetchBrokerClientState = async () => {
         setLoading(true);
 
         try {
-            const result = await httpClient.get(`v1/datasources/brokers/${id}/clients`);
+            const result = await call(() => api.dataSources.getClientState({ brokerId: id }));
 
             if (result.isSuccess) {
-                const response = (await result.response!.json()) as BrokerClientStateResponse;
-                setState(response as BrokerClientStateResponse);
+                setState(result.data!.connectionStatus);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             toast.error("Failed to fetch broker client state.");
@@ -66,7 +61,7 @@ function BrokerClientStateGet({ id }: BrokerClientStateGetProperties) {
                     </Text>
                 </>
             ) : (
-                <DataSourceState connectionStatus={state?.connectionStatus} />
+                <DataSourceState connectionStatus={state} />
             )}
         </View>
     );

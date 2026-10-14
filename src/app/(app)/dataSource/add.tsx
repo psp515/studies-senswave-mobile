@@ -1,6 +1,7 @@
 import Button from "@/components/common/Button";
 import { DataSourceForm, DataSourceFormHandle } from "@/components/dataSource/DataSourceForm";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -8,7 +9,7 @@ import { View } from "react-native";
 import { KeyboardStickyView } from "react-native-keyboard-controller";
 
 function AddPage() {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
     const formRef = useRef<DataSourceFormHandle>(null);
@@ -18,15 +19,26 @@ function AddPage() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.post("v1/datasources/brokers", values);
+        const result = await callSimple(
+            () =>
+                api.dataSources.createBroker({
+                    name: values.name,
+                    url: values.url,
+                    clientName: values.clientName,
+                    port: values.port,
+                    protocolVersion: values.protocolVersion,
+                    useTls: values.useTls,
+                    username: values.username,
+                    password: values.password,
+                }),
+            "Failed to add data source.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Data source added successfully.");
             router.back();
         } else {
-            toast.error("Failed to add data source.");
-            const data = await response.response?.text();
-            console.error(data);
+            toast.apiError(result);
         }
 
         setLoading(false);

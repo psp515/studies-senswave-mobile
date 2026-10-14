@@ -1,8 +1,8 @@
 import Button from "@/components/common/Button";
 import Input from "@/components/common/Input";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { CreateSubscriptionRequest } from "@/types/DataSourcesTypes";
 import { keyboardOffset } from "@/styles/defaultStyles";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useRouter } from "expo-router";
@@ -13,7 +13,7 @@ interface AddSubscriptionFormProps {
 }
 
 const AddSubscriptionForm: FC<AddSubscriptionFormProps> = ({ brokerId }) => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
 
@@ -39,18 +39,14 @@ const AddSubscriptionForm: FC<AddSubscriptionFormProps> = ({ brokerId }) => {
 
         setLoading(true);
         try {
-            const body: CreateSubscriptionRequest = {
-                topic: topic.trim(),
-            };
-            const result = await httpClient.post(
-                `v1/datasources/brokers/${brokerId}/subscriptions`,
-                body,
+            const result = await callSimple(() =>
+                api.dataSources.createSubscribtion({ brokerId, topic: topic.trim() }),
             );
             if (result.isSuccess) {
                 toast.success("Subscription added.");
                 router.back();
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } finally {
             setLoading(false);

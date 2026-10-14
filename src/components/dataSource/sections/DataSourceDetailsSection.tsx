@@ -2,16 +2,18 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
 import { DataSourceForm, DataSourceFormHandle } from "@/components/dataSource/DataSourceForm";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { DataSourceDto } from "@/types/DataSourcesTypes";
+import { DataSourceDto, toDataSourceDto } from "@/types/DataSourcesTypes";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 
 function DataSourceDetailsSection() {
-    const { id } = useLocalSearchParams();
-    const httpClient = useHttpClient();
+    const { id: idParam } = useLocalSearchParams<{ id: string }>();
+    const id = idParam ?? "";
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
 
@@ -24,14 +26,26 @@ function DataSourceDetailsSection() {
     const editClicked = async (values: any) => {
         setLoading(true);
 
-        const response = await httpClient.patch("v1/datasources/brokers/" + id, values);
+        const result = await callSimple(
+            () =>
+                api.dataSources.updateBroker({
+                    brokerId: id,
+                    name: values.name,
+                    url: values.url,
+                    clientName: values.clientName,
+                    port: values.port,
+                    protocolVersion: values.protocolVersion,
+                    useTls: values.useTls,
+                    username: values.username,
+                    password: values.password,
+                }),
+            "Failed to update data source.",
+        );
 
-        if (response.isSuccess) {
+        if (result.isSuccess) {
             toast.success("Data source updated successfully.");
         } else {
-            const content = await response.response?.text();
-            console.error(content);
-            toast.error("Failed to update data source.");
+            toast.apiError(result);
         }
 
         setLoading(false);
@@ -41,13 +55,13 @@ function DataSourceDetailsSection() {
         setLoading(true);
 
         try {
-            const response = await httpClient.delete("v1/datasources/brokers/" + id);
+            const result = await callSimple(() => api.dataSources.deleteBroker({ brokerId: id }));
 
-            if (response.isSuccess) {
+            if (result.isSuccess) {
                 toast.success("Data source removed successfully.");
                 router.back();
             } else {
-                toast.httpError(response);
+                toast.apiError(result);
             }
         } finally {
             setLoading(false);
@@ -62,13 +76,12 @@ function DataSourceDetailsSection() {
         const load = async () => {
             setLoading(true);
 
-            const response = await httpClient.get("v1/datasources/brokers/" + id);
+            const result = await call(() => api.dataSources.getBroker({ brokerId: id }));
 
-            if (response.isSuccess) {
-                const content = (await response.response?.json()) as DataSourceDto;
-                setDataSource(content);
+            if (result.isSuccess) {
+                setDataSource(toDataSourceDto(result.data!));
             } else {
-                toast.httpError(response);
+                toast.apiError(result);
             }
 
             setLoading(false);
@@ -120,8 +133,8 @@ function DataSourceDetailsSection() {
                 initName={dataSource?.name}
                 initClientName={dataSource?.clientName}
                 initPort={dataSource?.port}
-                initMqttVersion={dataSource?.mqttVersion}
-                initTls={dataSource?.tls}
+                initMqttVersion={dataSource?.protocolVersion}
+                initTls={dataSource?.useTls}
             />
 
             <FAB actions={fabActions} forceExpanded={isFormDirty} />

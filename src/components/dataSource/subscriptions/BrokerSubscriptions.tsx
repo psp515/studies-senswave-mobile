@@ -1,7 +1,8 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FAB, { FABAction } from "@/components/common/FAB";
 import Loading from "@/components/common/Loading";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call, callSimple, isNotFound } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { SubscriptionDto } from "@/types/DataSourcesTypes";
@@ -11,11 +12,11 @@ import React, { FC, useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Text from "@/components/common/Text";
 import Icon from "@/components/common/Icon";
-import { ListResponse } from "@/utils/httpClient";
 
 const BrokerSubscriptions: FC = () => {
-    const { id } = useLocalSearchParams();
-    const httpClient = useHttpClient();
+    const { id: idParam } = useLocalSearchParams<{ id: string }>();
+    const id = idParam ?? "";
+    const api = useApi();
     const toast = useToast();
     const theme = useTheme();
     const router = useRouter();
@@ -30,22 +31,22 @@ const BrokerSubscriptions: FC = () => {
             if (isRefresh) setRefreshing(true);
             else setLoading(true);
             try {
-                const result = await httpClient.get(
-                    `v1/datasources/brokers/${id}/subscriptions?page=1&size=400`,
+                const result = await call(() =>
+                    api.dataSources.getSubscribtions({ brokerId: id, page: 1, size: 400 }),
                 );
                 if (result.isSuccess) {
-                    const content =
-                        (await result.response?.json()) as ListResponse<SubscriptionDto>;
-                    setSubscriptions(content.items ?? []);
+                    setSubscriptions(result.data!.items.map(({ id, topic }) => ({ id, topic })));
+                } else if (isNotFound(result)) {
+                    setSubscriptions([]);
                 } else {
-                    toast.httpError(result);
+                    toast.apiError(result);
                 }
             } finally {
                 if (isRefresh) setRefreshing(false);
                 else setLoading(false);
             }
         },
-        [id, httpClient, toast],
+        [id, api, toast],
     );
 
     useFocusEffect(
@@ -61,14 +62,14 @@ const BrokerSubscriptions: FC = () => {
     const onDelete = async (subscriptionId: string) => {
         setLoading(true);
         try {
-            const result = await httpClient.delete(
-                `v1/datasources/brokers/${id}/subscriptions/${subscriptionId}`,
+            const result = await callSimple(() =>
+                api.dataSources.deleteSubscribtion({ brokerId: id, subscriptionId }),
             );
             if (result.isSuccess) {
                 toast.success("Subscription removed.");
                 load();
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } finally {
             setLoading(false);
@@ -78,7 +79,7 @@ const BrokerSubscriptions: FC = () => {
     const onAdd = () => {
         router.push({
             pathname: "dataSource/brokers/addSubscription",
-            params: { brokerId: id as string },
+            params: { brokerId: id },
         });
     };
 
