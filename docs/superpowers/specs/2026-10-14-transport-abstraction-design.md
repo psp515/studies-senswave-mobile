@@ -113,6 +113,7 @@ modules/senswave-grpc/      local Expo module, Kotlin only
   exposed as a `HorizontalSelector` on `server.tsx`.
 - Changing mode or base URL rebuilds the transport and clients (new `ApiProvider` value) and
   logs the session out, because tokens are not portable across backend deployments.
+  Changing mode/URL logs out — implemented in PR 8.
 
 ### ApiProvider
 
@@ -126,7 +127,8 @@ Configuration > Session > Api > LiveUpdate. `useApi()` returns:
   automations, dataSources,
   users, account, auth, legal,
   liveUpdates: LiveUpdateSource,
-  transportMode: TransportMode,
+  transportMode: TransportMode,          // effective (Rest after fallback)
+  requestedTransportMode: TransportMode, // from configuration
 }
 ```
 
@@ -155,8 +157,8 @@ const homesRoutes: { [K in keyof typeof HomesService.method]: RestRoute<...> };
 - Non-2xx → `ConnectError` with `Code` mapped from HTTP status:
   401 → Unauthenticated, 403 → PermissionDenied, 404 → NotFound, 408 → DeadlineExceeded,
   409 → AlreadyExists, 400/422 → InvalidArgument, 5xx → Unavailable (503) / Internal (others).
-  Raw status kept in `ConnectError.metadata` under `x-http-status`. Parsed `ErrorProblemDetails`
-  attached as detail for the `errors` interceptor.
+  Raw status and parsed problem body travel as a `RestProblem { httpStatus, body }` on
+  `ConnectError.cause`; the `errors` interceptor turns them into `ApiError`.
 - `stream()` throws `Unimplemented`. Live updates in REST mode bypass the transport (Section 4).
 - Fixes the existing `v1/user/settings` path typo (UserProvider.tsx:96) as a side effect.
 
@@ -218,7 +220,8 @@ applies interceptors and the deadline). Timeout is therefore a transport option
 
 ### legal
 
-`PermissionDenied` → `logout()` + `toast.httpError`. Same rule as the current 403 handling
+`PermissionDenied` → `logout()` + `onForbidden(error)` (toast of `errors[0].description`,
+fallback "Access denied."). Same rule as the current 403 handling
 (LegalMiddleware / LegalConsentInterceptor: missing consents).
 
 ### timeout
@@ -249,6 +252,9 @@ class ApiError extends Error {
 
 ### SessionProvider and LegalProvider
 
+- Ruling (final review PR 2): `SessionProvider` and `LegalProvider` sit above `ApiProvider`, so
+  they use an anonymous client factory `createAnonymousApi(baseUrl, mode)` → `{ auth, legal }`
+  built with `[createErrorInterceptor()]` only (both services are anonymous). Implemented in PR 3.
 - All raw `executeTimeout` calls to `v1/auth/*` become `api.auth.*`. Login "email not confirmed"
   detection reads `ApiError.code === Code.Unauthenticated && ApiError.message === "NotAllowed"`
   in both modes: the gRPC `AuthService` throws `Unauthenticated` with the Identity `SignInResult`

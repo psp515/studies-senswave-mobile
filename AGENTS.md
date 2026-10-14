@@ -217,7 +217,8 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
 - 15s request timeout
 - Auto token refresh on 401 (retry once with new token)
 - **403** → logout (LegalMiddleware: missing user consents — user hasn't accepted latest Terms/Privacy)
-- **Never** call `fetch` directly outside of `httpClient.tsx`
+- **Never** call `fetch` directly outside `httpClient.tsx` and `src/api/transport/rest/`
+- Callers must consume api errors only through `call()` / `callSimple()` / `toApiError()`; never inspect a raw caught error.
 - API path prefix: `/api/v1/...` (built by `ConfigurationProvider.getApiUrl`)
 
 ### Key API endpoints by feature
