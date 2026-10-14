@@ -9,6 +9,9 @@ import {
 import { toProtoValue } from "@/api/json";
 import {
     toDevice,
+    toListDashboardDto,
+    toOperationListDto,
+    toUpdateDeviceRequest,
     toDeviceDetails,
     toOperationDto,
     toOperationGroups,
@@ -165,5 +168,88 @@ describe("operation and widget mappers", () => {
                 widgets: [{ id: "w1", name: "W", type: "Switch", enabled: true }],
             },
         ]);
+    });
+});
+
+describe("toOperationListDto", () => {
+    it("keeps id, name and typed type only", () => {
+        expect(
+            toOperationListDto({ id: "o1", name: "On", type: "Boolean", extra: 1 } as never),
+        ).toEqual({
+            id: "o1",
+            name: "On",
+            type: "Boolean",
+        });
+    });
+});
+
+describe("toListDashboardDto", () => {
+    it("keeps id, name, icon and type only", () => {
+        expect(
+            toListDashboardDto({
+                id: "b1",
+                name: "Main",
+                icon: "home",
+                type: "Grid",
+                x: 1,
+            } as never),
+        ).toEqual({ id: "b1", name: "Main", icon: "home", type: "Grid" });
+    });
+});
+
+describe("toUpdateDeviceRequest", () => {
+    it("sends empty strings for unchanged name/icon and leaves room unset", () => {
+        const r = toUpdateDeviceRequest("d1", {});
+        expect(r).toMatchObject({ deviceId: "d1", name: "", icon: "", type: "" });
+        expect(r.roomId).toBeUndefined();
+        expect(r.operationId).toBeUndefined();
+        expect(r.displayableOperationId).toBeUndefined();
+        expect(r.presenceOperationId).toBe("");
+        expect(r.presenceType).toBe("");
+    });
+
+    it("maps a null room to empty string (clears it)", () => {
+        expect(toUpdateDeviceRequest("d1", { roomId: null }).roomId).toBe("");
+        expect(toUpdateDeviceRequest("d1", { roomId: "r1" }).roomId).toBe("r1");
+    });
+
+    it("carries a changed name and icon", () => {
+        expect(toUpdateDeviceRequest("d1", { name: "N", icon: "I" })).toMatchObject({
+            name: "N",
+            icon: "I",
+        });
+    });
+
+    it("Display tile with unit", () => {
+        const r = toUpdateDeviceRequest("d1", {
+            type: "Display",
+            displayableOperationId: null,
+            configuration: { unit: "C" },
+        });
+        expect(r).toMatchObject({ type: "Display", displayableOperationId: "" });
+        expect(r.configuration).toEqual({ unit: "C" });
+    });
+
+    it("Switch tile with operation", () => {
+        expect(toUpdateDeviceRequest("d1", { type: "Switch", operationId: "o1" })).toMatchObject({
+            type: "Switch",
+            operationId: "o1",
+        });
+    });
+
+    it("presence BooleanOperation with id", () => {
+        expect(
+            toUpdateDeviceRequest("d1", {
+                presenceType: "BooleanOperation",
+                presenceOperationId: "o9",
+            }),
+        ).toMatchObject({ presenceType: "BooleanOperation", presenceOperationId: "o9" });
+    });
+
+    it("presence Default", () => {
+        expect(toUpdateDeviceRequest("d1", { presenceType: "Default" })).toMatchObject({
+            presenceType: "Default",
+            presenceOperationId: "",
+        });
     });
 });

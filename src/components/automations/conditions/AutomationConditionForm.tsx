@@ -5,7 +5,7 @@ import Text from "@/components/common/Text";
 import { useToast } from "@/contexts/ToastProvider";
 import { useApi } from "@/contexts/ApiProvider";
 import { call, isNotFound } from "@/api/call";
-import { OperationType } from "@/types/DeviceTypes";
+import { toOperationListDto } from "@/types/DeviceTypes";
 import ImageButton from "@/components/common/ImageButton";
 import { useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import Dropdown, { Option } from "@/components/common/Dropdown";
@@ -115,13 +115,7 @@ export default function AutomationConditionForm({
         );
 
         if (result.isSuccess && result.data) {
-            setOperations(
-                result.data.items.map((i) => ({
-                    id: i.id,
-                    name: i.name,
-                    type: i.type as OperationType,
-                })),
-            );
+            setOperations(result.data.items.map(toOperationListDto));
             setOperationId("None");
         } else if (isNotFound(result)) {
             setOperations([]);

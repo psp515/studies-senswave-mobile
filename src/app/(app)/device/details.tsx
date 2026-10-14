@@ -5,7 +5,7 @@ import DeviceForm, { DeviceFormRef } from "@/components/device/DeviceForm";
 import { Device, useDeviceList } from "@/contexts/custom/DeviceListProvider";
 import { useApi } from "@/contexts/ApiProvider";
 import { call, callSimple } from "@/api/call";
-import { toDeviceDetails } from "@/types/DeviceTypes";
+import { DeviceFormUpdate, toDeviceDetails, toUpdateDeviceRequest } from "@/types/DeviceTypes";
 import { useToast } from "@/contexts/ToastProvider";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -26,24 +26,11 @@ function Details() {
     const editClicked = async (values: any) => {
         if (typeof deviceId !== "string") return;
 
-        // Unchanged string fields are "" (omitted on the wire); null ids become "" (sent as null).
-        const nullable = (v: string | null | undefined) =>
-            v === undefined ? undefined : (v ?? "");
-
         const result = await callSimple(
             () =>
-                api.devices.updateDevice({
-                    deviceId,
-                    roomId: nullable(values.roomId),
-                    name: values.name ?? "",
-                    icon: values.icon ?? "",
-                    operationId: nullable(values.operationId),
-                    displayableOperationId: nullable(values.displayableOperationId),
-                    configuration: values.configuration,
-                    type: values.type ?? "",
-                    presenceOperationId: values.presenceOperationId ?? "",
-                    presenceType: values.presenceType ?? "",
-                }),
+                api.devices.updateDevice(
+                    toUpdateDeviceRequest(deviceId, values as DeviceFormUpdate),
+                ),
             "Failed to update device.",
         );
 

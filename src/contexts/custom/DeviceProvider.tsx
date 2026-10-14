@@ -11,7 +11,7 @@ import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
 import { call, isNotFound } from "@/api/call";
 import { structToJson } from "@/api/json";
-import { DashboardDisplayDto, ListDashboardDto } from "@/types/DeviceTypes";
+import { DashboardDisplayDto, ListDashboardDto, toListDashboardDto } from "@/types/DeviceTypes";
 
 export type { ListDashboardDto };
 
@@ -78,9 +78,7 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
         const result = await call(() => api.dashboards.displayDashboards({ deviceId }));
 
         if (result.isSuccess) {
-            const items: ListDashboardDto[] = (result.data?.items ?? []).map(
-                ({ id, name, icon, type }) => ({ id, name, icon, type }),
-            );
+            const items: ListDashboardDto[] = (result.data?.items ?? []).map(toListDashboardDto);
             setDashboards(items);
 
             if (items.length === 0) {
@@ -172,7 +170,7 @@ const DeviceProvider: FC<PropsWithChildren> = ({ children }) => {
 
             if (result.isSuccess) {
                 const items: ListDashboardDto[] = (result.data?.items ?? []).map(
-                    ({ id, name, icon, type }) => ({ id, name, icon, type }),
+                    toListDashboardDto,
                 );
                 setDashboards(items);
                 if (items.length > 0) {

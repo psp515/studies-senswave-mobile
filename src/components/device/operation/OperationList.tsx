@@ -1,7 +1,7 @@
 import Loading from "@/components/common/Loading";
 import { useApi } from "@/contexts/ApiProvider";
 import { call, isNotFound } from "@/api/call";
-import { OperationType } from "@/types/DeviceTypes";
+import { toOperationListDto } from "@/types/DeviceTypes";
 import { useToast } from "@/contexts/ToastProvider";
 import React, { useCallback, useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
@@ -33,13 +33,7 @@ function OperationList() {
             );
 
             if (result.isSuccess && result.data) {
-                setOperations(
-                    result.data.items.map((i) => ({
-                        id: i.id,
-                        name: i.name,
-                        type: i.type as OperationType,
-                    })),
-                );
+                setOperations(result.data.items.map(toOperationListDto));
                 setRefreshing(false);
             } else {
                 toast.apiError(result);
@@ -59,13 +53,7 @@ function OperationList() {
         );
 
         if (result.isSuccess && result.data) {
-            setOperations(
-                result.data.items.map((i) => ({
-                    id: i.id,
-                    name: i.name,
-                    type: i.type as OperationType,
-                })),
-            );
+            setOperations(result.data.items.map(toOperationListDto));
             setLoading(false);
         } else if (isNotFound(result)) {
             setOperations([]);

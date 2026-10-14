@@ -1,4 +1,9 @@
-import type { DisplayDeviceDto, GetDeviceResponse } from "@/api/gen/devices/v1/devices_pb";
+import type { JsonObject, MessageInitShape } from "@bufbuild/protobuf";
+import type {
+    DisplayDeviceDto,
+    GetDeviceResponse,
+    UpdateDeviceRequestSchema,
+} from "@/api/gen/devices/v1/devices_pb";
 import type { GetOperationResponse } from "@/api/gen/devices/v1/operations_pb";
 import type { DisplayWidgetsResponse, GetWidgetResponse } from "@/api/gen/devices/v1/widgets_pb";
 import { fromProtoValue, isoFromTimestamp, isoOrNull, structToJson } from "@/api/json";
@@ -99,6 +104,21 @@ export type ListDashboardDto = {
     type: string;
 };
 
+export type UpdateDeviceRequest = MessageInitShape<typeof UpdateDeviceRequestSchema>;
+
+/** What DeviceForm submits in edit mode: only changed fields are present; null clears an id. */
+export interface DeviceFormUpdate {
+    name?: string;
+    icon?: string;
+    roomId?: string | null;
+    type?: string;
+    operationId?: string | null;
+    displayableOperationId?: string | null;
+    configuration?: JsonObject;
+    presenceType?: string;
+    presenceOperationId?: string;
+}
+
 export type DashboardDisplayDto = {
     type: string;
     configuration: Record<string, unknown>;
@@ -176,3 +196,37 @@ export const toOperationGroups = (r: DisplayWidgetsResponse): OperationGroup[] =
             enabled: w.enabled,
         })),
     }));
+
+export const toOperationListDto = (i: {
+    id: string;
+    name: string;
+    type: string;
+}): OperationListDto => ({ id: i.id, name: i.name, type: i.type as OperationType });
+
+export const toListDashboardDto = (i: {
+    id: string;
+    name: string;
+    icon: string;
+    type: string;
+}): ListDashboardDto => ({ id: i.id, name: i.name, icon: i.icon, type: i.type });
+
+/** Unset stays unset; null becomes "" (the transport sends it as a cleared id). */
+const nullable = (v: string | null | undefined): string | undefined =>
+    v === undefined ? undefined : (v ?? "");
+
+/** Unchanged string fields are "" (omitted on the wire); null ids are "" (sent as null). */
+export const toUpdateDeviceRequest = (
+    deviceId: string,
+    values: DeviceFormUpdate,
+): UpdateDeviceRequest => ({
+    deviceId,
+    roomId: nullable(values.roomId),
+    name: values.name ?? "",
+    icon: values.icon ?? "",
+    operationId: nullable(values.operationId),
+    displayableOperationId: nullable(values.displayableOperationId),
+    configuration: values.configuration,
+    type: values.type ?? "",
+    presenceOperationId: values.presenceOperationId ?? "",
+    presenceType: values.presenceType ?? "",
+});
