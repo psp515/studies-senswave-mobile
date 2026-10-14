@@ -8,7 +8,7 @@ import Dropdown, { Option } from "@/components/common/Dropdown";
 import OperationTile from "../operation/OperationTile";
 import { useWidgetDetails } from "@/contexts/custom/WidgetDetailsProvider";
 import Text from "@/components/common/Text";
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 import ButtonForm, { ButtonOperationTypes } from "@/components/device/widgets/forms/ButtonForm";
 import DisplayForm, { DisplayOperationTypes } from "@/components/device/widgets/forms/DisplayForms";
 import { SwitchOperationTypes } from "./forms/SwitchForm";

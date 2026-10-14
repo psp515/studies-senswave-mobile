@@ -5,7 +5,7 @@ import Text from "@/components/common/Text";
 import SwitchDropdown from "@/components/common/SwitchDropdown";
 import { useWidgetDetails } from "@/contexts/custom/WidgetDetailsProvider";
 import { View } from "react-native";
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 import Dropdown from "@/components/common/Dropdown";
 import ColorPicker, {
     BlueSlider,

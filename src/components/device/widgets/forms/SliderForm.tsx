@@ -1,6 +1,6 @@
 import InputNumber from "@/components/common/InputNumber";
 import UserNote from "@/components/common/UserNote";
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 import { useWidgetDetails } from "@/contexts/custom/WidgetDetailsProvider";
 import { useFocusEffect } from "expo-router";
 import { useRef, useState } from "react";

@@ -8,7 +8,8 @@ import ButtonWithTextAndImage from "@/components/common/ButtonWithTextAndImage";
 import { useHttpClient } from "@/contexts/HttpClientProvider";
 import { ListResponse } from "@/utils/httpClient";
 import { useToast } from "@/contexts/ToastProvider";
-import { OperationListDto, OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationListDto } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 
 interface OperationSelectorProps {
     deviceId: string;

@@ -2,7 +2,7 @@ import { View, Pressable } from "react-native";
 import React from "react";
 import Text from "@/components/common/Text";
 import { useRouter } from "expo-router";
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
 
@@ -28,7 +28,7 @@ function OperationTile({ id, name, type, disablePress = false }: OperationTilePr
 
     const icon =
         type && icons[type as keyof typeof icons]
-            ? icons[type]
+            ? icons[type as keyof typeof icons]
             : { letter: "?", colour: "#33363F40" };
 
     const onOperationClicked = () => {

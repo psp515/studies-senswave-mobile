@@ -1,3 +1,3 @@
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 
 export const DisplayOperationTypes: OperationType[] = ["HexColor"];

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import Input from "@/components/common/Input";
 import { useWidgetDetails } from "@/contexts/custom/WidgetDetailsProvider";
 import { View } from "react-native";
-import { OperationType } from "@/contexts/custom/DeviceListProvider";
+import { OperationType } from "@/types/DeviceTypes";
 
 interface DisplayFormProps {
     edit?: boolean;
