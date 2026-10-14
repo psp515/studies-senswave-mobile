@@ -1,5 +1,6 @@
 import { Code, ConnectError, type UnaryRequest, type UnaryResponse } from "@connectrpc/connect";
 import { createContextValues } from "@connectrpc/connect";
+import { createAsyncIterable } from "@connectrpc/connect/protocol";
 import type { DescMethod, DescService } from "@bufbuild/protobuf";
 import { UsersService } from "@/api/gen/users/v1/users_pb";
 import { AuthService } from "@/api/gen/users/v1/auth_pb";
@@ -167,14 +168,45 @@ describe("authInterceptor", () => {
             logout: jest.fn(),
             onRefreshFailed: jest.fn(),
         });
-        const streamReq = { ...unaryReq(), stream: true } as never;
+        const streamReq = {
+            ...unaryReq(),
+            stream: true,
+            method: { methodKind: "server_streaming" },
+            message: createAsyncIterable([{ homeReferenceId: "h1" }]),
+        } as never;
+        const messages: unknown[][] = [];
         await i(async (req) => {
             seen.push(req.header.get("Authorization"));
+            const got: unknown[] = [];
+            for await (const m of req.message as AsyncIterable<unknown>) got.push(m);
+            messages.push(got);
             if (seen.length === 1) throw new ConnectError("401", Code.Unauthenticated);
             return okRes();
         })(streamReq);
         expect(refresh).toHaveBeenCalledTimes(1);
         expect(seen).toEqual(["Bearer old", "Bearer new"]);
+        expect(messages).toEqual([[{ homeReferenceId: "h1" }], [{ homeReferenceId: "h1" }]]);
+    });
+
+    it("does not retry client/bidi streams", async () => {
+        let calls = 0;
+        const i = createAuthInterceptor({
+            getAccessToken: () => "old",
+            refresh: async () => "new",
+            logout: jest.fn(),
+            onRefreshFailed: jest.fn(),
+        });
+        const streamReq = {
+            ...unaryReq(),
+            stream: true,
+            method: { methodKind: "bidi_streaming" },
+            message: createAsyncIterable([]),
+        } as never;
+        await i(async () => {
+            calls++;
+            throw new ConnectError("401", Code.Unauthenticated);
+        })(streamReq).catch(() => undefined);
+        expect(calls).toBe(1);
     });
 
     it("retries with the already-rotated token without refreshing again", async () => {

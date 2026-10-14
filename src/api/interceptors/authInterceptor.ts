@@ -1,4 +1,5 @@
 import { Code, ConnectError, type Interceptor } from "@connectrpc/connect";
+import { createAsyncIterable } from "@connectrpc/connect/protocol";
 import { ApiError } from "@/api/errors";
 import { AuthService } from "@/api/gen/users/v1/auth_pb";
 import { LegalService } from "@/api/gen/users/v1/legal_pb";
@@ -58,19 +59,30 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
 
         req.header.set("Authorization", `Bearer ${sentToken}`);
 
+        // A stream request message is a single-use async iterable that the transport drains, so
+        // buffer it once and hand every attempt a fresh iterable. Only server streams are retried:
+        // client/bidi request streams cannot be replayed.
+        const serverStream = req.stream && req.method.methodKind === "server_streaming";
+        let attempt: (r: typeof req) => ReturnType<typeof next> = (r) => next(r);
+        if (serverStream) {
+            const msgs: unknown[] = [];
+            for await (const m of req.message as AsyncIterable<unknown>) msgs.push(m);
+            attempt = (r) => next({ ...r, message: createAsyncIterable(msgs) } as typeof req);
+        }
+
         try {
-            return await next(req);
+            return await attempt(req);
         } catch (e) {
             // Streams retry too, but only while next() rejects: that is before the response started
             // (trailers-only error). Errors while iterating messages never reach this catch.
-            if (!isUnauthenticated(e)) throw e;
+            if (!isUnauthenticated(e) || (req.stream && !serverStream)) throw e;
 
             // Late 401 for a request sent before another caller finished a refresh:
             // the session already holds a newer token, so retry with it instead of refreshing again.
             const current = deps.getAccessToken();
             if (current && current !== sentToken) {
                 req.header.set("Authorization", `Bearer ${current}`);
-                return next(req);
+                return attempt(req);
             }
 
             const newToken = await refreshOnce();
@@ -81,7 +93,7 @@ export const createAuthInterceptor = (deps: AuthInterceptorDeps): Interceptor =>
             }
 
             req.header.set("Authorization", `Bearer ${newToken}`);
-            return next(req);
+            return attempt(req);
         }
     };
 };

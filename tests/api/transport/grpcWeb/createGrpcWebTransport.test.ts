@@ -139,4 +139,49 @@ describe("gRPC-Web transport", () => {
             "https://h/senswave.liveupdates.v1.LiveUpdatesService/Subscribe",
         );
     });
+
+    it("retries a server stream with the refreshed token after trailers-only Unauthenticated", async () => {
+        const live = toBinary(
+            LiveUpdateSchema,
+            create(LiveUpdateSchema, { update: { case: "initialized", value: {} } }),
+        );
+        let n = 0;
+        const auths: (string | null)[] = [];
+        const fetchSpy = jest.fn(async (_url: unknown, init?: RequestInit) => {
+            // The same Headers object is mutated across attempts, so capture it per call.
+            auths.push(new Headers(init?.headers).get("Authorization"));
+            return ++n === 1
+                ? // trailers-only: status travels in the HTTP headers with an empty body
+                  new Response(null, {
+                      status: 200,
+                      headers: {
+                          "Content-Type": "application/grpc-web+proto",
+                          "grpc-status": "16",
+                          "grpc-message": "expired",
+                      },
+                  })
+                : grpcWebResponse(concat(dataFrame(live), trailerFrame({ "grpc-status": "0" })));
+        });
+        let token = "old";
+        const transport = createSenswaveGrpcWebTransport({
+            baseUrl: "https://h",
+            fetch: fetchSpy as unknown as typeof fetch,
+            interceptors: createInterceptors({
+                getAccessToken: () => token,
+                refresh: async () => (token = "new"),
+                logout: jest.fn(),
+                onRefreshFailed: jest.fn(),
+                onForbidden: jest.fn(),
+            }),
+        });
+        const cases: (string | undefined)[] = [];
+        for await (const u of createClient(LiveUpdatesService, transport).subscribe({
+            homeReferenceId: "h1",
+        })) {
+            cases.push(u.update.case);
+        }
+        expect(cases).toEqual(["initialized"]);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(auths).toEqual(["Bearer old", "Bearer new"]);
+    });
 });
