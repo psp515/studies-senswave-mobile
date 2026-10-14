@@ -4,10 +4,12 @@ import {
     asRecord,
     bool,
     empty,
+    idResponse,
     items,
     num,
     numOrUndefined,
     query,
+    seg,
     str,
     strOrUndefined,
 } from "../converters";
@@ -17,10 +19,6 @@ const location = (v: unknown) => {
     const l = asRecord(v);
     return { longitude: num(l.longitude), latitude: num(l.latitude) };
 };
-
-const idResponse = (json: unknown) => ({ id: str(asRecord(json).id) });
-
-const enc = encodeURIComponent;
 
 export const homesRoutes = defineRoutes(HomesService, {
     getHomes: {
@@ -40,7 +38,7 @@ export const homesRoutes = defineRoutes(HomesService, {
     },
     getHome: {
         method: "GET",
-        path: (req) => `v1/homes/${enc(req.homeId)}`,
+        path: (req) => `v1/homes/${seg(req.homeId, "homeId")}`,
         response: (json) => {
             const j = asRecord(json);
             const ds =
@@ -79,7 +77,7 @@ export const homesRoutes = defineRoutes(HomesService, {
     },
     updateHome: {
         method: "PATCH",
-        path: (req) => `v1/homes/${enc(req.homeId)}`,
+        path: (req) => `v1/homes/${seg(req.homeId, "homeId")}`,
         body: (req) => ({
             name: req.name || undefined,
             icon: req.icon || undefined,
@@ -90,18 +88,18 @@ export const homesRoutes = defineRoutes(HomesService, {
     },
     deleteHome: {
         method: "DELETE",
-        path: (req) => `v1/homes/${enc(req.homeId)}`,
+        path: (req) => `v1/homes/${seg(req.homeId, "homeId")}`,
         response: empty,
     },
     setHomeDataSource: {
         method: "PUT",
-        path: (req) => `v1/homes/${enc(req.homeId)}/datasource`,
+        path: (req) => `v1/homes/${seg(req.homeId, "homeId")}/datasource`,
         body: (req) => ({ brokerId: req.brokerId }),
         response: empty,
     },
     deleteHomeDataSource: {
         method: "DELETE",
-        path: (req) => `v1/homes/${enc(req.homeId)}/datasource`,
+        path: (req) => `v1/homes/${seg(req.homeId, "homeId")}/datasource`,
         response: empty,
     },
 });

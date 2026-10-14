@@ -1,3 +1,4 @@
+import { Code } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import {
     RoomsService,
@@ -66,5 +67,18 @@ describe("rooms REST routes", () => {
             r.path(create(DeleteRoomRequestSchema, { homeId: "h1", roomId: "r1" }) as never),
         ).toBe("v1/homes/h1/rooms/r1");
         expect(r.response(undefined, 204)).toEqual({});
+    });
+
+    it("rejects empty ids with InvalidArgument", () => {
+        const invalid = expect.objectContaining({ code: Code.InvalidArgument });
+        expect(() => route("displayRooms").path({ homeId: "" } as never)).toThrow(invalid);
+        expect(() => route("createRoom").path({ homeId: "" } as never)).toThrow(invalid);
+        expect(() => route("getRoom").path({ homeId: "h", roomId: "" } as never)).toThrow(invalid);
+        expect(() => route("updateRoom").path({ homeId: "", roomId: "r" } as never)).toThrow(
+            invalid,
+        );
+        expect(() => route("deleteRoom").path({ homeId: "h", roomId: "" } as never)).toThrow(
+            invalid,
+        );
     });
 });

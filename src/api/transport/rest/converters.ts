@@ -1,3 +1,4 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate, type TimestampSchema } from "@bufbuild/protobuf/wkt";
 
@@ -10,13 +11,23 @@ export const bool = (v: unknown): boolean => v === true;
 
 export const num = (v: unknown): number => (typeof v === "number" ? v : 0);
 
+export const idResponse = (json: unknown) => ({ id: str(asRecord(json).id) });
+
+/** Encodes a required path segment; an empty value is a client bug, not a request. */
+export const seg = (v: string, name = "path parameter"): string => {
+    if (!v) throw new ConnectError(`Missing ${name}`, Code.InvalidArgument);
+    return encodeURIComponent(v);
+};
+
 export const empty = (): Record<string, never> => ({});
 
 export const timestampFromIso = (
     iso: unknown,
 ): MessageInitShape<typeof TimestampSchema> | undefined => {
     if (typeof iso !== "string") return undefined;
-    const d = new Date(iso);
+    // .NET serialises DateTime Kind=Unspecified without a zone; the backend means UTC.
+    const hasZone = /(Z|[+-]\d{2}:?\d{2})$/i.test(iso);
+    const d = new Date(hasZone ? iso : `${iso}Z`);
     if (Number.isNaN(d.getTime())) return undefined;
     return timestampFromDate(d);
 };

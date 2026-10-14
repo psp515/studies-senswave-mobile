@@ -1,3 +1,4 @@
+import { Code } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import {
     HomesService,
@@ -157,5 +158,20 @@ describe("homes REST routes", () => {
             "v1/homes/h1/datasource",
         );
         expect(d.response(undefined, 204)).toEqual({});
+    });
+
+    it("rejects an empty homeId with InvalidArgument", () => {
+        const names = [
+            "getHome",
+            "updateHome",
+            "deleteHome",
+            "setHomeDataSource",
+            "deleteHomeDataSource",
+        ] as const;
+        for (const name of names) {
+            expect(() => route(name).path({ homeId: "" } as never)).toThrow(
+                expect.objectContaining({ code: Code.InvalidArgument }),
+            );
+        }
     });
 });

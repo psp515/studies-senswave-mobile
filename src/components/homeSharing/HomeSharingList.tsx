@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { FlatList, View, StyleSheet, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { useApi } from "@/contexts/ApiProvider";
-import { call } from "@/api/call";
-import { Code } from "@connectrpc/connect";
+import { call, isNotFound } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
 import HomeSharingListItem from "./HomeSharingListItem";
 import Button from "@/components/common/Button";
@@ -36,7 +35,7 @@ function HomeSharingList() {
                         sharingType: i.sharingType,
                     })),
                 );
-            } else if (result.error?.code === Code.NotFound) {
+            } else if (isNotFound(result)) {
                 console.warn("[HomeSharingList] Home not shared.");
                 setHomeSharings([]);
             } else {

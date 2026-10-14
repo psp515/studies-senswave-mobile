@@ -200,4 +200,27 @@ describe("createRestTransport", () => {
             .catch((e) => e);
         expect((err as ConnectError).code).toBe(Code.Unimplemented);
     });
+
+    it("propagates a ConnectError thrown by route.path()", async () => {
+        const throwing = defineRoutes(UsersService, {
+            getUser: {
+                method: "GET",
+                path: () => {
+                    throw new ConnectError("Missing id", Code.InvalidArgument);
+                },
+                response: () => ({}),
+            },
+            updateSettings: { method: "PATCH", path: () => "x", response: () => ({}) },
+            createConsents: { method: "POST", path: () => "x", response: () => ({}) },
+            deleteAccount: { method: "DELETE", path: () => "x", response: () => ({}) },
+        });
+        const fetchMock = jest.fn(async () => jsonResponse(200, {}));
+        const client = createClient(
+            UsersService,
+            createRestTransport({ baseUrl: "https://h", routes: throwing, fetch: fetchMock }),
+        );
+        const err = await client.getUser({}).catch((e) => e);
+        expect((err as ConnectError).code).toBe(Code.InvalidArgument);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
 });

@@ -1,3 +1,4 @@
+import { Code } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import {
     SharingService,
@@ -93,5 +94,11 @@ describe("homeSharing REST routes", () => {
             "v1/homes/sharings/leave/h1",
         );
         expect(r.response(undefined, 204)).toEqual({});
+    });
+
+    it("rejects empty ids with InvalidArgument", () => {
+        const invalid = expect.objectContaining({ code: Code.InvalidArgument });
+        expect(() => route("deleteSharing").path({ homeSharingId: "" } as never)).toThrow(invalid);
+        expect(() => route("leaveSharing").path({ homeId: "" } as never)).toThrow(invalid);
     });
 });

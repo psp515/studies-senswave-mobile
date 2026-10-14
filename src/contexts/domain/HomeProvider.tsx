@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect } from "react";
-import { Code } from "@connectrpc/connect";
-import { call } from "@/api/call";
+import { call, isNotFound } from "@/api/call";
 import { useApi } from "../ApiProvider";
 import { useToast } from "../ToastProvider";
 import { Home, toHome } from "@/types/HomeTypes";
@@ -79,7 +78,7 @@ export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
             }));
 
             console.debug("[Rooms View] Rooms refreshed.");
-        } else if (result.error?.code === Code.NotFound) {
+        } else if (isNotFound(result)) {
             console.debug("[Rooms View] No rooms found.");
             setCurrentHome((prev) => ({
                 ...prev!,
@@ -100,7 +99,7 @@ export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
         const current = await call(() => api.homes.getCurrentHome({ latitude, longitude }));
 
         if (!current.isSuccess) {
-            if (current.error?.code === Code.NotFound) {
+            if (isNotFound(current)) {
                 toast.info("Create your first home!");
                 console.info("[HomesProvider] Homes not found.");
                 setCurrentHome(undefined);

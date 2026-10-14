@@ -10,6 +10,7 @@ interface ToastContextType {
     info: (message: string) => void;
     error: (message: string) => void;
     httpError: (message: HttpResponse) => void;
+    /** `fallback` applies only when the result's errorMessage is empty. */
     apiError: (result: FailedResultLike, fallback?: string) => void;
 }
 

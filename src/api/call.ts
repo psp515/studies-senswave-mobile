@@ -1,6 +1,7 @@
 import { Code } from "@connectrpc/connect";
 import { Result, SimpleResult } from "@/utils/result";
 import { toApiError, type ApiError } from "./errors";
+import { DefaultErrorToastText } from "./toastDecision";
 
 export const ConnectionErrorMessage = "Connection error. Please check your internet connection.";
 
@@ -24,7 +25,7 @@ const messageOf = (e: unknown, fallback: string): { err: ApiError; text: string 
 /** Runs an api client call and folds the outcome into Result<T>. Never throws. */
 export const call = async <T>(
     fn: () => Promise<T>,
-    fallback = "Request failed.",
+    fallback = DefaultErrorToastText,
 ): Promise<Result<T>> => {
     try {
         return Result.success<T>(await fn());
@@ -36,7 +37,7 @@ export const call = async <T>(
 
 export const callSimple = async (
     fn: () => Promise<unknown>,
-    fallback = "Request failed.",
+    fallback = DefaultErrorToastText,
 ): Promise<SimpleResult> => {
     try {
         await fn();
@@ -46,3 +47,7 @@ export const callSimple = async (
         return SimpleResult.failure(text, err);
     }
 };
+
+/** True when a failed result carries a NotFound code. */
+export const isNotFound = (result: { error?: ApiError }): boolean =>
+    result.error?.code === Code.NotFound;

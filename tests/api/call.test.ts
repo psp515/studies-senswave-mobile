@@ -2,7 +2,8 @@ import { Code } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import { ErrorSchema } from "@/api/gen/common/v1/common_pb";
 import { ApiError } from "@/api/errors";
-import { call, callSimple } from "@/api/call";
+import { call, callSimple, isNotFound } from "@/api/call";
+import { DefaultErrorToastText } from "@/api/toastDecision";
 
 const ConnectionErrorText = "Connection error. Please check your internet connection.";
 
@@ -87,5 +88,26 @@ describe("call", () => {
             });
         }, "fallback");
         expect(r.errorMessage).toBe("fallback");
+    });
+
+    it("defaults to the generic toast text for call and callSimple", async () => {
+        const fail = async () => {
+            throw new ApiError({ code: Code.Internal, message: "" });
+        };
+        expect((await call(fail)).errorMessage).toBe(DefaultErrorToastText);
+        expect((await callSimple(fail)).errorMessage).toBe(DefaultErrorToastText);
+    });
+
+    it("isNotFound matches only NotFound failures", async () => {
+        const nf = await call(async () => {
+            throw new ApiError({ code: Code.NotFound, message: "" });
+        });
+        const other = await call(async () => {
+            throw new ApiError({ code: Code.Internal, message: "" });
+        });
+        const ok = await call(async () => 1);
+        expect(isNotFound(nf)).toBe(true);
+        expect(isNotFound(other)).toBe(false);
+        expect(isNotFound(ok)).toBe(false);
     });
 });

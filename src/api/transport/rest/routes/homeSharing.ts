@@ -1,8 +1,6 @@
 import { SharingService } from "@/api/gen/homes/v1/sharing_pb";
 import { defineRoutes } from "../RestRoute";
-import { asRecord, empty, items, query, str, timestampFromIso } from "../converters";
-
-const enc = encodeURIComponent;
+import { asRecord, empty, items, query, seg, str, timestampFromIso } from "../converters";
 
 export const homeSharingRoutes = defineRoutes(SharingService, {
     getSharings: {
@@ -42,12 +40,12 @@ export const homeSharingRoutes = defineRoutes(SharingService, {
     },
     deleteSharing: {
         method: "DELETE",
-        path: (req) => `v1/homes/sharings/${enc(req.homeSharingId)}`,
+        path: (req) => `v1/homes/sharings/${seg(req.homeSharingId, "homeSharingId")}`,
         response: empty,
     },
     leaveSharing: {
         method: "DELETE",
-        path: (req) => `v1/homes/sharings/leave/${enc(req.homeId)}`,
+        path: (req) => `v1/homes/sharings/leave/${seg(req.homeId, "homeId")}`,
         response: empty,
     },
 });
