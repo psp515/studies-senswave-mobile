@@ -21,14 +21,17 @@ function HomeList() {
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         const refresh = async () => {
-            const result = await call(() => api.homes.getHomes({ page: 0, size: 0 }));
+            const result = await call(
+                () => api.homes.getHomes({ page: 0, size: 0 }),
+                "Failed to load homes.",
+            );
 
             if (result.isSuccess) {
                 const filtered = result.data!.items.filter((home) => home.id !== homes.current?.id);
                 setHomesList(filtered);
                 setRefreshing(false);
             } else {
-                toast.apiError(result, "Failed to load homes.");
+                toast.apiError(result);
                 setRefreshing(false);
             }
         };
@@ -39,14 +42,17 @@ function HomeList() {
     }, []);
 
     const getHomes = async () => {
-        const result = await call(() => api.homes.getHomes({ page: 0, size: 0 }));
+        const result = await call(
+            () => api.homes.getHomes({ page: 0, size: 0 }),
+            "Failed to load homes.",
+        );
 
         if (result.isSuccess) {
             const filtered = result.data!.items.filter((home) => home.id !== homes.current?.id);
             setHomesList(filtered);
             setLoading(false);
         } else {
-            toast.apiError(result, "Failed to load homes.");
+            toast.apiError(result);
             setLoading(false);
         }
     };

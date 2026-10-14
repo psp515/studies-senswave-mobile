@@ -127,9 +127,14 @@ export const HomeProvider: FC<{ children: ReactNode }> = ({ children }) => {
     };
 
     const refreshCurrent = async () => {
+        if (!currentHome?.id) {
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
 
-        const homeId = currentHome?.id ?? "";
+        const homeId = currentHome.id;
         const result = await call(() => api.homes.getHome({ homeId }));
 
         if (result.isSuccess) {

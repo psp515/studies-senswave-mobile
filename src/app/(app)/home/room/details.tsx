@@ -46,8 +46,10 @@ function Details() {
     };
 
     const deleteRoom = async () => {
-        const result = await callSimple(() =>
-            api.rooms.deleteRoom({ homeId: homes.current?.id as string, roomId: id as string }),
+        const result = await callSimple(
+            () =>
+                api.rooms.deleteRoom({ homeId: homes.current?.id as string, roomId: id as string }),
+            "Failed to remove room.",
         );
 
         if (result.isSuccess) {
@@ -55,7 +57,7 @@ function Details() {
             homes.refreshRooms();
             router.back();
         } else {
-            toast.apiError(result, "Failed to remove room.");
+            toast.apiError(result);
         }
     };
 

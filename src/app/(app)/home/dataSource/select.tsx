@@ -32,11 +32,13 @@ function SelectHomeDataSource() {
         try {
             setLoading(true);
 
-            const result = await callSimple(() =>
-                api.homes.setHomeDataSource({
-                    homeId: homes.current?.id as string,
-                    brokerId: id,
-                }),
+            const result = await callSimple(
+                () =>
+                    api.homes.setHomeDataSource({
+                        homeId: homes.current?.id as string,
+                        brokerId: id,
+                    }),
+                "Failed to link data source: only one broker per home is allowed.",
             );
 
             if (result.isSuccess) {
@@ -47,10 +49,7 @@ function SelectHomeDataSource() {
                 console.error(
                     `Failed to link data source to home. (One Broker per Home). ${result.errorMessage}`,
                 );
-                toast.apiError(
-                    result,
-                    "Failed to link data source: only one broker per home is allowed.",
-                );
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(error);

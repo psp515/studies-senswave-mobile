@@ -21,8 +21,9 @@ function Add() {
     const addClicked = async (values: any) => {
         setLoading(true);
 
-        const result = await callSimple(() =>
-            api.rooms.createRoom({ homeId: homes.current?.id as string, name: values.name }),
+        const result = await callSimple(
+            () => api.rooms.createRoom({ homeId: homes.current?.id as string, name: values.name }),
+            "Failed to add room.",
         );
 
         if (result.isSuccess) {
@@ -30,7 +31,7 @@ function Add() {
             homes.refreshRooms();
             router.back();
         } else {
-            toast.apiError(result, "Failed to add room.");
+            toast.apiError(result);
         }
 
         setLoading(false);
