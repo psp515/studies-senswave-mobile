@@ -1,6 +1,7 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import ImageButton from "@/components/common/ImageButton";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useTheme } from "@/contexts/ThemeProvider";
 import { useToast } from "@/contexts/ToastProvider";
 import { shadowStyles } from "@/styles/shadowStyles";
@@ -18,18 +19,20 @@ interface HomeSharingListItemProps {
 
 function HomeSharingListItem({ id, email, type, onRemove }: HomeSharingListItemProps) {
     const theme = useTheme();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
     const removeSharing = async () => {
         try {
-            const result = await httpClient.delete(`/v1/homes/sharings/${id}`);
+            const result = await callSimple(() =>
+                api.homeSharing.deleteSharing({ homeSharingId: id }),
+            );
             if (result.isSuccess) {
                 toast.success("Home sharing removed.");
                 onRemove();
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error("Failed to remove sharing", error);

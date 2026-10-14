@@ -7,10 +7,10 @@ import { useHomes } from "@/contexts/domain/HomeProvider";
 import Text from "@/components/common/Text";
 import { shadowStyles } from "@/styles/shadowStyles";
 import { useToast } from "@/contexts/ToastProvider";
-import { Home } from "@/types/HomeTypes";
+import { HomeListItemDto } from "@/types/HomeTypes";
 
 interface HomeListItemProps {
-    home: Home;
+    home: HomeListItemDto;
 }
 
 function HomeListItem({ home }: HomeListItemProps) {

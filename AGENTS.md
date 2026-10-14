@@ -213,6 +213,7 @@ Result.success<T>(data) / Result.failure<T>("message") / Result.failureWithData<
   `callSimple()` from `src/api/call.ts` to get `Result<T>` / `SimpleResult`.
 - `useHttpClient()` remains until all call sites are migrated.
 - Migrated: `SessionProvider` (except Google), `LegalProvider`, `UserProvider`. Provider order: Configuration > AnonymousApi > Legal > Session > Theme > HttpClient > Api > SignalR > User.
+- Migrated: homes, rooms, home sharing (PR 4).
 - Hook: `useHttpClient()` — methods: `get`, `post`, `patch`, `put`, `delete`
 - Returns `HttpResponse`: `{ isSuccess, statusCode, response }`
 - 15s request timeout

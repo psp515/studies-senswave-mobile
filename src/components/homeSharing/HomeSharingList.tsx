@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { FlatList, View, StyleSheet, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call } from "@/api/call";
+import { Code } from "@connectrpc/connect";
 import { useToast } from "@/contexts/ToastProvider";
 import HomeSharingListItem from "./HomeSharingListItem";
 import Button from "@/components/common/Button";
 import { useHomes } from "@/contexts/domain/HomeProvider";
 import { HomeSharingDto } from "@/types/HomeTypes";
-import { ListResponse } from "@/utils/httpClient";
 
 function HomeSharingList() {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const toast = useToast();
     const router = useRouter();
     const homes = useHomes();
@@ -24,15 +25,22 @@ function HomeSharingList() {
         if (refresh || !homes.current?.id) return;
 
         try {
-            const result = await httpClient.get(`v1/homes/sharings?homeId=${homes.current?.id}`);
+            const homeId = homes.current.id;
+            const result = await call(() => api.homeSharing.getSharings({ homeId }));
 
             if (result.isSuccess) {
-                const data = (await result.response!.json()) as ListResponse<HomeSharingDto>;
-                setHomeSharings(data.items);
-            } else if (result.statusCode === 404) {
+                setHomeSharings(
+                    result.data!.items.map((i) => ({
+                        sharingId: i.sharingId,
+                        friendEmail: i.friendEmail,
+                        sharingType: i.sharingType,
+                    })),
+                );
+            } else if (result.error?.code === Code.NotFound) {
                 console.warn("[HomeSharingList] Home not shared.");
+                setHomeSharings([]);
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(error);

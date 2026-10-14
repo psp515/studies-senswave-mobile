@@ -1,35 +1,34 @@
 import Loading from "@/components/common/Loading";
 import { useHomes } from "@/contexts/domain/HomeProvider";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { call } from "@/api/call";
 import { useToast } from "@/contexts/ToastProvider";
-import { ListResponse } from "@/utils/httpClient";
 import React, { useCallback, useEffect, useState } from "react";
 import { FlatList, RefreshControl, View } from "react-native";
 import Text from "@/components/common/Text";
 import HomeListItem from "./HomeListItem";
 import { useFocusEffect } from "expo-router";
-import { Home } from "@/types/HomeTypes";
+import { HomeListItemDto } from "@/types/HomeTypes";
 
 function HomeList() {
     const toast = useToast();
     const homes = useHomes();
-    const httpClient = useHttpClient();
+    const api = useApi();
     const [loading, setLoading] = useState(true);
-    const [homesList, setHomesList] = useState<Home[]>([]);
+    const [homesList, setHomesList] = useState<HomeListItemDto[]>([]);
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         const refresh = async () => {
-            const result = await httpClient.get("v1/homes");
+            const result = await call(() => api.homes.getHomes({ page: 0, size: 0 }));
 
             if (result.isSuccess) {
-                const data = (await result.response!.json()) as ListResponse<Home>;
-                const filtered = data.items.filter((home) => home.id !== homes.current?.id);
+                const filtered = result.data!.items.filter((home) => home.id !== homes.current?.id);
                 setHomesList(filtered);
                 setRefreshing(false);
             } else {
-                toast.error("Failed to load homes.");
+                toast.apiError(result, "Failed to load homes.");
                 setRefreshing(false);
             }
         };
@@ -40,15 +39,14 @@ function HomeList() {
     }, []);
 
     const getHomes = async () => {
-        const result = await httpClient.get("v1/homes");
+        const result = await call(() => api.homes.getHomes({ page: 0, size: 0 }));
 
         if (result.isSuccess) {
-            const data = (await result.response!.json()) as ListResponse<Home>;
-            const filtered = data.items.filter((home) => home.id !== homes.current?.id);
+            const filtered = result.data!.items.filter((home) => home.id !== homes.current?.id);
             setHomesList(filtered);
             setLoading(false);
         } else {
-            toast.error("Failed to load homes.");
+            toast.apiError(result, "Failed to load homes.");
             setLoading(false);
         }
     };

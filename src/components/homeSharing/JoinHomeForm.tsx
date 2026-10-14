@@ -3,7 +3,8 @@ import { View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import Button from "../common/Button";
 import HomeCodeInput from "./HomeCodeInput";
-import { useHttpClient } from "@/contexts/HttpClientProvider";
+import { useApi } from "@/contexts/ApiProvider";
+import { callSimple } from "@/api/call";
 import { useRouter } from "expo-router";
 import { useToast } from "@/contexts/ToastProvider";
 import { useHomes } from "@/contexts/domain/HomeProvider";
@@ -11,7 +12,7 @@ import { useHomes } from "@/contexts/domain/HomeProvider";
 const CODE_LENGTH = 8;
 
 const JoinHomeForm: FC = () => {
-    const httpClient = useHttpClient();
+    const api = useApi();
     const router = useRouter();
     const toast = useToast();
     const homes = useHomes();
@@ -30,7 +31,9 @@ const JoinHomeForm: FC = () => {
         try {
             setLoading(true);
             console.log(code);
-            const result = await httpClient.put("/v1/homes/sharings", { password: code });
+            const result = await callSimple(() =>
+                api.homeSharing.acceptSharing({ password: code }),
+            );
 
             if (result.isSuccess) {
                 toast.success("Joined home successfully.");
@@ -41,7 +44,7 @@ const JoinHomeForm: FC = () => {
 
                 router.back();
             } else {
-                toast.httpError(result);
+                toast.apiError(result);
             }
         } catch (error) {
             console.error(`Failed to join home: ${error}.`);
